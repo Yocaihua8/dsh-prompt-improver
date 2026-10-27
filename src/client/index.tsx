@@ -183,16 +183,16 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     const settings = new SettingsClient(scope)
     scope.effect(() => () => settings.dispose())
     const style = document.createElement('style')
-    style.dataset.dshPlugin = 'dsh-link-prompt-enhance'
+    style.dataset.dshPlugin = 'dsh-prompt-improver'
     style.textContent = styles
     document.head.append(style)
     scope.effect(() => () => style.remove())
     scope.slots.inject('conversation.input.right', () => scope.slots.register({
-      name: 'conversation.input.right', id: 'dsh-link-prompt-enhance', order: 100,
+      name: 'conversation.input.right', id: 'dsh-prompt-improver', order: 100,
       inject: sessionId => ({ binding: createBinding(scope, sessionId, settings), settings }),
     }, EnhanceButton))
     scope.slots.inject('settings.section', () => scope.slots.register({
-      name: 'settings.section', id: 'dsh-link-prompt-enhance', order: 45, label: () => '提示词增强',
+      name: 'settings.section', id: 'dsh-prompt-improver', order: 45, label: () => '提示词增强',
       inject: () => ({ settings }),
     }, EnhanceSettingsPage))
   })

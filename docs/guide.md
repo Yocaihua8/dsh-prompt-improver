@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [开发说明](development.md) · [验证记录](verification.md)
 
-适用于提示词增强 0.2.5 与 DSH 0.2.1-rc.3。
+适用于提示词增强 0.2.6 与 DSH 0.2.1-rc.3。
 
 ## 增强与采用
 
@@ -62,6 +62,8 @@
 
 设置管理仅限宿主所有者。非所有者可使用默认最近对话和当前模型。设置文件位于 `$DSH_HOME/plugins/dsh-link-prompt-enhance/settings.json`，只保存这些选择，不保存模型密钥。
 
+0.2.6 的新包名为 `dsh-prompt-improver`，上述设置路径及旧客户端的增强方式存储键有意保持不变，避免升级或回滚时丢失设置；不需要移动或删除这个目录。
+
 ## 数据与上下文
 
 草稿及选定范围内的上下文会发送给增强模型，按该模型服务的规则计费。插件不会把背景材料中的指令当作新任务或执行授权。
@@ -92,35 +94,37 @@
 
 ### 准备
 
-需要 DSH 0.2.1-rc.3，并能访问 GitHub 和 npm 依赖源。[v0.2.5 Release](https://github.com/Yocaihua8/dsh-link-prompt-enhance/releases/tag/v0.2.5) 提供 `.tgz` 安装包和 `SHA256SUMS`。也可通过 DSH 从 GitHub 标签安装；两种方式均包含预构建的 `lib`，无需安装开发工具。修改源码和重新构建前请阅读[工作区前提](development.md#工作区前提)。
+需要 DSH 0.2.1-rc.3，并能访问 GitHub 和 npm 依赖源。[v0.2.6 Release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.6) 提供 `.tgz` 安装包和 `SHA256SUMS`。也可通过 DSH 从 GitHub 标签安装；两种方式均包含预构建的 `lib`，无需安装开发工具。修改源码和重新构建前请阅读[工作区前提](development.md#工作区前提)。
 
 升级前，备份旧插件安装包、插件设置，以及 desktop profile 的 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`cordis.yml` 和 `cordis.patch.yml`。记录备份对应的插件和宿主版本，保留旧包原路径。
 
 ### 从 GitHub 安装
 
+如果已经安装旧包 `dsh-link-prompt-enhance`，先完成下方[改名迁移](#从旧包名迁移)，不要同时加载两个包。
+
 等待当前任务结束，从应用正常退出 DSH，并确认相关进程已经退出。使用 Desktop 自带的 CLI，替换下面的占位路径后执行：
 
 ```powershell
 $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
-& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-link-prompt-enhance#v0.2.5'
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
 ```
 
 Desktop 自带 CLI 支持该保留 profile 的插件访问；不能假定另一套系统 CLI 具有同样能力。独立 CLI 使用已有的 Web profile（需包含工作区和会话服务；新建空 profile 不足以运行本插件）：
 
 ```powershell
-dsh plugin --profile <你的配置名称> add 'github:Yocaihua8/dsh-link-prompt-enhance#v0.2.5'
+dsh plugin --profile <你的配置名称> add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
 ```
 
-以上固定安装 0.2.5。需要测试默认分支时可去掉 `#v0.2.5`；也可改为 `#<完整提交 SHA>`。更新时重新执行添加命令，并按当时 README 核对宿主兼容版本。Release 自动生成的 Source code ZIP 用于源码开发，不是插件安装包；安装请下载 Assets 中的 `.tgz` 或使用上述命令。
+以上固定安装 0.2.6。需要测试默认分支时可去掉 `#v0.2.6`；也可改为 `#<完整提交 SHA>`。更新时重新执行添加命令，并按当时 README 核对宿主兼容版本。Release 自动生成的 Source code ZIP 用于源码开发，不是插件安装包；安装请下载 Assets 中的 `.tgz` 或使用上述命令。
 
 重新启动后，在专用测试会话检查增强按钮、设置页、预览和恢复原文，再次重启确认设置保留。使用无敏感内容的草稿，检查其他插件和原有数据是否正常。
 
 ### 安装 Release 安装包
 
-下载 Release 中的 `dsh-link-prompt-enhance-0.2.5.tgz` 和 `SHA256SUMS`，先核对校验值，再按同样的备份和退出步骤安装：
+下载 Release 中的 `dsh-prompt-improver-0.2.6.tgz` 和 `SHA256SUMS`，先核对校验值，再按同样的备份和退出步骤安装：
 
 ```powershell
-$pluginPackage = '<安装包目录>\dsh-link-prompt-enhance-0.2.5.tgz'
+$pluginPackage = '<安装包目录>\dsh-prompt-improver-0.2.6.tgz'
 Get-FileHash -Algorithm SHA256 $pluginPackage
 # 将 Hash 与 SHA256SUMS 中该文件对应的值核对一致后再安装
 & $dshCli plugin --profile desktop add $pluginPackage
@@ -128,16 +132,38 @@ Get-FileHash -Algorithm SHA256 $pluginPackage
 
 不要用新包覆盖已经安装的同路径 `.tgz`。安装后按上述步骤检查界面和设置。
 
+### 从旧包名迁移
+
+0.2.5 及更早版本使用 `dsh-link-prompt-enhance`；0.2.6 起使用 `dsh-prompt-improver`。这是安装包身份变更，重新添加新包不会自动移除旧包。先按“准备”一节备份并退出 DSH，再使用同一 CLI、同一 profile 执行：
+
+```powershell
+$dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
+& $dshCli plugin --profile desktop remove dsh-link-prompt-enhance
+if ($LASTEXITCODE -ne 0) { throw '旧包移除失败，请检查输出后再继续。' }
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+if ($LASTEXITCODE -ne 0) { throw '新包安装失败，请恢复备份的旧安装包后再启动 DSH。' }
+```
+
+独立 CLI 用户替换为实际 Web profile。使用下载的安装包时，将第二条命令的 GitHub 来源替换为 `dsh-prompt-improver-0.2.6.tgz` 的路径。
+
+如果曾在 home 或 profile 的 `cordis.patch.yml` 手动配置本插件，或通过市场保存了本插件的启停覆盖，检查其中指向旧插件的 `id` / `name` / `target`：把对应的 `dsh-link-prompt-enhance` 改为 `dsh-prompt-improver`，保留原 `disabled` 和 `config` 内容。只处理本插件的引用；没有这些条目就无需修改。不要批量替换设置存储路径。
+
+重新启动后检查只出现一个增强按钮和一个设置入口，原增强方式、参考范围及专用模型选择仍在。若安装失败，恢复备份中的旧包；两个包不要同时启用。
+
 ### 回滚
 
-先正常退出 DSH，再用同一 Desktop CLI 添加对应的旧安装包：
+先正常退出 DSH。若回滚到 0.2.5 或更早版本，先移除新包，再用同一 Desktop CLI 添加对应的旧安装包：
 
 ```powershell
 $previousPackage = '<备份目录>\<对应版本的旧插件包>.tgz'
+& $dshCli plugin --profile desktop remove dsh-prompt-improver
+if ($LASTEXITCODE -ne 0) { throw '新包移除失败，请检查输出后再继续。' }
 & $dshCli plugin --profile desktop add $previousPackage
 ```
 
-若先前从 GitHub 安装，也可添加保留了完整 `lib` 的已验证旧提交：`& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-link-prompt-enhance#<旧提交 SHA>'`。本次加入预构建产物之前的提交不具备这一直接安装条件。
+如果迁移时修改了本插件的 Cordis 覆盖项，回滚时将这些引用恢复为旧包名，保留其配置及启停状态。回滚到仍叫 `dsh-prompt-improver` 的版本时，无需先移除，直接添加对应包即可。
+
+若先前从 GitHub 安装，也可添加保留了完整 `lib` 的已验证旧提交：`& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#<旧提交 SHA>'`。本次加入预构建产物之前的提交不具备这一直接安装条件。
 
 如果需要恢复备份的 profile 配置与锁文件，先确认其中的其他依赖变更也需要撤销，再执行 `plugin --profile desktop install --frozen-lockfile`。仅在设置发生变化且确需回退时恢复对应插件设置。
 
@@ -154,4 +180,4 @@ $previousPackage = '<备份目录>\<对应版本的旧插件包>.tgz'
 | 为什么不能恢复上一次原文？ | 编辑、发送或切换附件、会话、有效模型后，旧撤销会失效 |
 | 为什么增强失败或结果没被采用？ | 按错误提示检查历史读取、模型可用性、超时、引用完整性，以及输入是否已变化 |
 
-仍有问题时，可提交 [Issue](https://github.com/Yocaihua8/dsh-link-prompt-enhance/issues)，提供插件及 DSH 版本、复现步骤、脱敏后的错误或截图。不要附密钥、个人会话和未脱敏日志。
+仍有问题时，可提交 [Issue](https://github.com/Yocaihua8/dsh-prompt-improver/issues)，提供插件及 DSH 版本、复现步骤、脱敏后的错误或截图。不要附密钥、个人会话和未脱敏日志。

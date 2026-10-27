@@ -12,7 +12,7 @@ test('browser bundle uses host modules and disposes remote, slot and style when 
   const sandbox = {
     structuredClone, AbortController, AbortSignal,
     window: { __ModuleLoader__: { load: (definition: { id: string; factory: (require: (name: string) => unknown) => typeof client }) => {
-      assert.equal(definition.id, 'dsh-link-prompt-enhance')
+      assert.equal(definition.id, 'dsh-prompt-improver')
       client = definition.factory(name => name === '@deepseek-ai/dsh-client-ui-primitives' ? {} : require(name))
     } } },
     document: {
@@ -27,8 +27,9 @@ test('browser bundle uses host modules and disposes remote, slot and style when 
   class SlotsFixture extends Service {
     constructor(ctx: Context) { super(ctx, 'slots') }
     inject(_name: string, callback: () => () => void) { return this.ctx.effect(callback) }
-    register(options: { name: string }) {
+    register(options: { name: string; id: string }) {
       assert.ok(['conversation.input.right', 'settings.section'].includes(options.name))
+      assert.equal(options.id, 'dsh-prompt-improver')
       state.slots++
       return () => { state.slots-- }
     }
@@ -38,7 +39,7 @@ test('browser bundle uses host modules and disposes remote, slot and style when 
   ctx.provide('remote.session', {})
   ctx.provide('remote.promptEnhance', {})
   ctx.provide('remote', { $mount: async (contribution: { package: string }) => {
-    assert.equal(contribution.package, 'dsh-link-prompt-enhance')
+    assert.equal(contribution.package, 'dsh-prompt-improver')
     state.remote++
     return () => { state.remote-- }
   } })

@@ -1,8 +1,12 @@
 {
-  "name": "dsh-link-prompt-enhance",
+  "name": "dsh-prompt-improver",
   "displayName": "DSH 提示词增强",
   "description": "按需结合对话、记忆和项目片段增强草稿，支持预览、专用模型与安全撤销。",
-  "version": "0.2.5",
+  "version": "0.2.6",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yocaihua8/dsh-prompt-improver.git"
+  },
   "private": true,
   "license": "MIT",
   "type": "module",

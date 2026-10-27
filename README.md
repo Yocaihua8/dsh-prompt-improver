@@ -1,10 +1,10 @@
-# DSH 提示词增强
+# DSH Prompt Improver · 提示词增强
 
 在 DSH 输入框中，把草稿整理成更清晰的提示词。直接替换，或先对照预览，再决定是否采用。
 
-**插件 0.2.5 · 适配 DSH 0.2.1-rc.3 · MIT 许可证**
+**插件 0.2.6 · 适配 DSH 0.2.1-rc.3 · MIT 许可证**
 
-[安装与上手](#安装与上手) · [常用设置](#常用设置) · [使用指南](docs/guide.md) · [问题反馈](https://github.com/Yocaihua8/dsh-link-prompt-enhance/issues)
+[安装与上手](#安装与上手) · [常用设置](#常用设置) · [使用指南](docs/guide.md) · [问题反馈](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
 
 ## 看看它如何工作
 
@@ -26,7 +26,7 @@
 
 ![提示词增强设置：适度增强、先预览、仅草稿和跟随当前模型的演示配置](docs/screenshots/enhance-settings.png)
 
-*以上为 2026-10-27 在 DSH 0.2.1-rc.3 / 插件 0.2.3 中重新截取的真实界面；0.2.4、0.2.5 的构建和依赖修订未改变界面。演示使用“仅草稿、先预览”，并非首次默认配置；图片仅保留相关界面，个人配置字段已遮盖。*
+*以上为 2026-10-27 在 DSH 0.2.1-rc.3 / 插件 0.2.3 中重新截取的真实界面；0.2.4、0.2.5 的构建和依赖修订，以及 0.2.6 的包名变更均未改变界面。演示使用“仅草稿、先预览”，并非首次默认配置；图片仅保留相关界面，个人配置字段已遮盖。*
 
 ## 安装与上手
 
@@ -35,13 +35,15 @@
 - 已安装 **DSH 0.2.1-rc.3**，并配置好可用模型。
 - 能访问 GitHub 和 npm 依赖源。
 
-从 [v0.2.5 Release](https://github.com/Yocaihua8/dsh-link-prompt-enhance/releases/tag/v0.2.5) 下载 `.tgz` 安装包和 SHA-256 校验文件，或使用下面的命令从同一版本标签安装。两种方式均包含预构建的 `lib`，无需在本机编译插件。
+从 [v0.2.6 Release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.6) 下载 `.tgz` 安装包和 SHA-256 校验文件，或使用下面的命令从同一版本标签安装。两种方式均包含预构建的 `lib`，无需在本机编译插件。
+
+**旧版用户注意**：0.2.6 起仓库和安装包改名为 `dsh-prompt-improver`。已安装 `dsh-link-prompt-enhance` 的用户须先按[改名迁移步骤](docs/guide.md#从旧包名迁移)移除旧包，再安装新包；现有增强设置继续沿用。
 
 使用 DSH Desktop 时，先备份原插件和 desktop profile 配置，等待任务结束并正常退出 DSH，再运行以下 PowerShell 命令。将占位路径替换为实际安装目录：
 
 ```powershell
 $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
-& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-link-prompt-enhance#v0.2.5'
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
 ```
 
 使用 **DSH Desktop 自带的 CLI**。独立 CLI 用户将 `desktop` 替换为已有 Web profile 的名称。Release 安装包、开发分支及回滚步骤见[安装与回滚指南](docs/guide.md#安装与回滚)。
@@ -83,5 +85,5 @@ $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
 - [使用指南](docs/guide.md)：预览、恢复原文、设置、安装与常见问题。
 - [开发说明](docs/development.md)：工作区依赖、构建检查、接口和测试。
 - [验证记录](docs/verification.md)：按日期保留的测试、安装和实测证据。
-- [提交问题或建议](https://github.com/Yocaihua8/dsh-link-prompt-enhance/issues)：请附版本、复现步骤及脱敏后的截图。
+- [提交问题或建议](https://github.com/Yocaihua8/dsh-prompt-improver/issues)：请附版本、复现步骤及脱敏后的截图。
 - [MIT 许可证](LICENSE)。

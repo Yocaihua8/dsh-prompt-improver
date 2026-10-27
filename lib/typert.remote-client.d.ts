@@ -4,7 +4,7 @@ import type {
   TypertRemoteInfo,
   TypertRemoteMethod,
 } from '@deepseek-ai/dsh-typert-protocol'
-import type { Capabilities, EnhanceRequest, EnhanceResponse, EnhanceSettings } from 'dsh-link-prompt-enhance/types'
+import type { Capabilities, EnhanceRequest, EnhanceResponse, EnhanceSettings } from 'dsh-prompt-improver/types'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$70726f6d7074456e68616e6365 {

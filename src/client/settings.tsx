@@ -29,6 +29,7 @@ export class SettingsClient {
       this.capabilities = capabilities.value
       if (capabilities.value.owner) {
         let legacy: string | undefined
+        // This pre-settings-store key must remain readable after the package rename.
         try { legacy = localStorage.getItem('dsh-link-prompt-enhance.mode') ?? undefined } catch { /* Browser storage is optional. */ }
         const result = await this.ctx.remote.promptEnhance.getSettings(legacy, signal)
         if (!result.ok) throw new Error(result.error.message)

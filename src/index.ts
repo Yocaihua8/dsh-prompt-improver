@@ -26,6 +26,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 export default class PromptEnhance extends TypertRemoteService {
   static inject = ['llm', 'sessionQuery', 'typert', 'workspaceRegistry', 'subprocess']
   private readonly lifetime = new AbortController()
+  // Keep the existing data path across the package rename, including rollback.
   private readonly settings = new SettingsStore(dshHomePath('plugins', 'dsh-link-prompt-enhance', 'settings.json'))
 
   private requireOwner(signal: AbortSignal): void {

@@ -129,6 +129,7 @@ test('generated Host RPC loads and unloads with strict schema, session resource 
   const registry = ctx.plugin(TypertRegistry)
   await registry
   const unregister = ctx.typert.register(TYPERT)
+  assert.ok(ctx.typert.getPackage('dsh-prompt-improver'))
   const fork = ctx.plugin(PromptEnhance)
   await fork
   assert.ok(ctx.promptEnhance)
@@ -145,6 +146,6 @@ test('generated Host RPC loads and unloads with strict schema, session resource 
   await rejection
   assert.equal(ctx.get('promptEnhance'), undefined)
   unregister()
-  assert.equal(ctx.typert.getPackage('dsh-link-prompt-enhance'), undefined)
+  assert.equal(ctx.typert.getPackage('dsh-prompt-improver'), undefined)
   await registry.dispose()
 })

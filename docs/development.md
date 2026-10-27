@@ -4,6 +4,8 @@
 
 ## 工作区前提
 
+当前仓库、npm 包身份及 Cordis 加载 ID 均为 `dsh-prompt-improver`（0.2.6 起）。RPC 服务仍为 `promptEnhance`，错误码、设置数据路径和旧浏览器存储键保持兼容；这些旧标识不应随包名批量替换。历史验证记录和旧 Release 的名称保留原样。
+
 需要 Git、Node.js **22.19.0 或更高版本**、随 Node.js 安装的 npm，以及访问 npm 依赖源的网络。DSH 相关依赖为 **0.2.1-rc.3**，由 `npm ci` 按 `package-lock.json` 安装；构建和单元测试不要求先安装或启动 DSH Desktop，也不需要模型密钥。
 
 **从 0.2.4 起，单独克隆本仓库即可构建与打包。** `scripts/` 包含本插件使用的构建器、包检查器和契约同步脚本，`shared/` 包含记忆契约源文件；所有构建输入均位于仓库和本地安装的 npm 依赖中，不再读取父目录脚本或其他插件。
@@ -13,7 +15,7 @@
 仓库内的构建输入与输出：
 
 ```text
-dsh-link-prompt-enhance/
+dsh-prompt-improver/
 ├─ scripts/                  # 本地构建、包检查和契约同步实现
 ├─ shared/                   # 契约源文件
 ├─ src/                      # 产品源码与生成契约副本
@@ -26,10 +28,10 @@ dsh-link-prompt-enhance/
 在任意开发目录中运行：
 
 ```powershell
-git clone https://github.com/Yocaihua8/dsh-link-prompt-enhance.git
-cd dsh-link-prompt-enhance
+git clone https://github.com/Yocaihua8/dsh-prompt-improver.git
+cd dsh-prompt-improver
 # 复现本次 Release 时固定标签；开发默认分支时可省略
-git checkout v0.2.5
+git checkout v0.2.6
 npm ci
 npm run check
 npm run check:package
