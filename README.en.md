@@ -6,7 +6,7 @@ Turn a draft in the DSH input box into a clearer prompt. Apply the result direct
 
 **Plugin 0.2.6 · Compatible with DSH 0.2.1-rc.3 · MIT license**
 
-[Get started](#get-started) · [Common settings](#common-settings) · [User guide (Chinese)](docs/guide.md) · [Report an issue](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
+[Get started](#get-started) · [Common settings](#common-settings) · [User guide](docs/guide.en.md) · [Report an issue](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
 
 ## See it in action
 
@@ -48,11 +48,11 @@ $dshCli = '<DSH installation directory>\resources\runtime\cli\bin\dsh.cmd'
 & $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
 ```
 
-Use the **CLI bundled with DSH Desktop**. For a standalone CLI installation, run `dsh plugin --profile <your-existing-web-profile> add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'` with your existing Web profile name. See the [installation and rollback guide (Chinese)](docs/guide.md#安装与回滚) for release archives, development branches and rollback steps.
+Use the **CLI bundled with DSH Desktop**. For a standalone CLI installation, run `dsh plugin --profile <your-existing-web-profile> add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'` with your existing Web profile name. See the [installation and rollback guide](docs/guide.en.md#installation-and-rollback) for release archives, development branches and rollback steps.
 
-To change the source, clone this repository and run `npm ci`, `npm run check` and `npm pack`. The build scripts and shared contract sources are included. Development requires Git and Node.js **22.19.0 or newer**; see the [development guide (Chinese)](docs/development.md) for details.
+To change the source, clone this repository and run `npm ci`, `npm run check` and `npm pack`. The build scripts and shared contract sources are included. Development requires Git and Node.js **22.19.0 or newer**; see the [development guide](docs/development.en.md) for details.
 
-Version 0.2.5 reduced dependency audit findings in this repository's locked dependency tree from 40 to zero while retaining compatibility with DSH 0.2.1-rc.3. The plugin does not override the host's bundled dependencies. See the [verification record (Chinese)](docs/verification.md) for the audit scope and compatibility checks.
+Version 0.2.5 reduced dependency audit findings in this repository's locked dependency tree from 40 to zero while retaining compatibility with DSH 0.2.1-rc.3. The plugin does not override the host's bundled dependencies. See the [verification record](docs/verification.en.md) for the audit scope and compatibility checks.
 
 ### Improve your first draft
 
@@ -76,7 +76,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Installation failed. Restore the previous pack
 
 If you have custom Cordis overrides or market-created enable/disable overrides for this plugin, update the old plugin's `id`, `name` or `target` references to `dsh-prompt-improver`, preserving their `disabled` and `config` values. Only change references to this plugin.
 
-The settings file intentionally stays at `$DSH_HOME/plugins/dsh-link-prompt-enhance/settings.json` so both the renamed plugin and the old version can read it. Do not move or delete it. After restarting, check that there is one enhancement button and one settings entry, and that your previous choices are preserved. For rollback, remove the new package before reinstalling an old-name package and restore any changed Cordis references; see the [migration and rollback guide (Chinese)](docs/guide.md#从旧包名迁移).
+The settings file intentionally stays at `$DSH_HOME/plugins/dsh-link-prompt-enhance/settings.json` so both the renamed plugin and the old version can read it. Do not move or delete it. After restarting, check that there is one enhancement button and one settings entry, and that your previous choices are preserved. For rollback, remove the new package before reinstalling an old-name package and restore any changed Cordis references; see the [migration and rollback guide](docs/guide.en.md#migrate-from-the-old-package).
 
 ## Common settings
 
@@ -87,7 +87,7 @@ The settings file intentionally stays at `$DSH_HOME/plugins/dsh-link-prompt-enha
 | Context scope | Recent conversation | Use draft-only for standalone questions, or extended context for memory and project excerpts |
 | Enhancement model | Current conversation model | Choose a dedicated model to improve prompts with a different model |
 
-Upgrades preserve existing settings. The enhancement mode from older clients is migrated on the first read. If a dedicated model is unavailable, enhancement fails with a message instead of silently switching models. See the [user guide (Chinese)](docs/guide.md) for details.
+Upgrades preserve existing settings. The enhancement mode from older clients is migrated on the first read. If a dedicated model is unavailable, enhancement fails with a message instead of silently switching models. See the [user guide](docs/guide.en.md) for details.
 
 ## Data and costs
 
@@ -96,12 +96,12 @@ Upgrades preserve existing settings. The enhancement mode from older clients is 
 - **Extended context** can read personal and same-project memories plus current-project excerpts. It requires host-owner permissions and the corresponding services; it does not write to memory.
 - Enhancement does not upload attachment contents. Structured `@references` are validated and restored. Models can still miss requirements, so review the result before sending.
 
-See [data and context (Chinese)](docs/guide.md#数据与上下文) for limits, read boundaries and failure handling.
+See [data and context](docs/guide.en.md#data-and-context) for limits, read boundaries and failure handling.
 
 ## Documentation and feedback
 
-- [User guide (Chinese)](docs/guide.md): preview, restore, settings, installation and troubleshooting.
-- [Development guide (Chinese)](docs/development.md): prerequisites, build checks, interfaces and tests.
-- [Verification record (Chinese)](docs/verification.md): dated test, installation and real-model evidence.
+- [User guide](docs/guide.en.md): preview, restore, settings, installation and troubleshooting.
+- [Development guide](docs/development.en.md): prerequisites, build checks, interfaces and tests.
+- [Verification record](docs/verification.en.md): dated test, installation and real-model evidence.
 - [Report an issue or suggestion](https://github.com/Yocaihua8/dsh-prompt-improver/issues): include the version, reproduction steps and redacted screenshots.
 - [MIT license](LICENSE).

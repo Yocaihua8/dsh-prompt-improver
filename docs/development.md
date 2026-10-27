@@ -1,5 +1,7 @@
 # 开发说明
 
+简体中文 · [English](development.en.md)
+
 [返回 README](../README.md) · [使用指南](guide.md) · [验证记录](verification.md)
 
 ## 工作区前提

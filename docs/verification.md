@@ -1,5 +1,7 @@
 # 验证记录
 
+简体中文 · [English](verification.en.md)
+
 [返回 README](../README.md) · [使用指南](guide.md) · [开发说明](development.md)
 
 各节保留对应日期的版本、环境与验证范围。历史本机路径用于追溯，不是公开下载地址，也不是当前安装指令。

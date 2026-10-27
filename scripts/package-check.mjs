@@ -23,7 +23,8 @@ export async function checkPackage(entryUrl) {
     }
   }
   for (const required of ['README.md', 'README.en.md', 'LICENSE', 'cordis.patch.yml', 'docs/verification.md',
-    'docs/guide.md', 'docs/development.md', 'docs/screenshots/README.md',
+    'docs/guide.md', 'docs/development.md', 'docs/guide.en.md', 'docs/development.en.md',
+    'docs/verification.en.md', 'docs/screenshots/README.md',
     'docs/screenshots/enhance-entry.png', 'docs/screenshots/enhance-preview.png', 'docs/screenshots/enhance-settings.png']) {
     assert.ok(files.has(required), `Missing ${required}`)
   }

@@ -1,5 +1,7 @@
 # 使用指南
 
+简体中文 · [English](guide.en.md)
+
 [返回 README](../README.md) · [开发说明](development.md) · [验证记录](verification.md)
 
 适用于提示词增强 0.2.6 与 DSH 0.2.1-rc.3。
