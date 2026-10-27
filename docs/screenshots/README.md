@@ -2,6 +2,10 @@
 
 [返回首页](../../README.md)
 
+仓库根目录的 [`screenshots.json`](../../screenshots.json) 按“增强入口 → 对照预览 → 插件设置”声明这三张图片，供插件市场读取。该清单只配置截图，不代表插件已被市场收录。
+
+The repository-root [`screenshots.json`](../../screenshots.json) lists these three images in this order: input entry, comparison preview, and plugin settings. This manifest configures storefront screenshots; it does not mean the plugin has been accepted into the catalog.
+
 - 采集日期：2026-10-27。
 - 环境：实际运行的 DSH Desktop 0.2.1-rc.3，已安装提示词增强 0.2.3；宿主 CLI 版本与插件安装清单已核对。
 - 主题：深色。仅截取插件相关区域，排除侧栏、账号、项目、路径及其他应用元素。
