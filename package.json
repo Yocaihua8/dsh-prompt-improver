@@ -45,7 +45,7 @@
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
-    "docs/verification.md"
+    "docs"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
