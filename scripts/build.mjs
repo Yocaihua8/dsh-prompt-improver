@@ -1,2 +1,2 @@
-import { buildPlugin } from '../../scripts/build-plugin.mjs'
+import { buildPlugin } from './build-plugin.mjs'
 await buildPlugin(import.meta.url)

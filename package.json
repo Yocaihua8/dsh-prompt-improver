@@ -2,7 +2,7 @@
   "name": "dsh-link-prompt-enhance",
   "displayName": "DSH 提示词增强",
   "description": "按需结合对话、记忆和项目片段增强草稿，支持预览、专用模型与安全撤销。",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -48,6 +48,7 @@
     "docs"
   ],
   "scripts": {
+    "sync:shared": "node scripts/sync-shared.mjs",
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.client.json",
     "test": "tsx --test test/*.test.ts",

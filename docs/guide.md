@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [开发说明](development.md) · [验证记录](verification.md)
 
-适用于提示词增强 0.2.3 与 DSH 0.2.1-rc.3。
+适用于提示词增强 0.2.4 与 DSH 0.2.1-rc.3。
 
 ## 增强与采用
 
@@ -92,7 +92,7 @@
 
 ### 准备
 
-需要 DSH 0.2.1-rc.3，并能访问 GitHub 和 npm 依赖源。仓库包含预构建的 `lib`，可直接通过 DSH 从 GitHub 安装；无需取得外部构建脚本或安装开发工具。截至 2026-10-27，[GitHub Releases](https://github.com/Yocaihua8/dsh-link-prompt-enhance/releases) 尚无单独的 `.tgz` 安装包。修改源码和重新构建前请阅读[工作区前提](development.md#工作区前提)。
+需要 DSH 0.2.1-rc.3，并能访问 GitHub 和 npm 依赖源。[v0.2.4 Release](https://github.com/Yocaihua8/dsh-link-prompt-enhance/releases/tag/v0.2.4) 提供 `.tgz` 安装包和 `SHA256SUMS`。也可通过 DSH 从 GitHub 标签安装；两种方式均包含预构建的 `lib`，无需安装开发工具。修改源码和重新构建前请阅读[工作区前提](development.md#工作区前提)。
 
 升级前，备份旧插件安装包、插件设置，以及 desktop profile 的 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`cordis.yml` 和 `cordis.patch.yml`。记录备份对应的插件和宿主版本，保留旧包原路径。
 
@@ -102,25 +102,27 @@
 
 ```powershell
 $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
-& $dshCli plugin --profile desktop add github:Yocaihua8/dsh-link-prompt-enhance
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-link-prompt-enhance#v0.2.4'
 ```
 
 Desktop 自带 CLI 支持该保留 profile 的插件访问；不能假定另一套系统 CLI 具有同样能力。独立 CLI 使用已有的 Web profile（需包含工作区和会话服务；新建空 profile 不足以运行本插件）：
 
 ```powershell
-dsh plugin --profile <你的配置名称> add github:Yocaihua8/dsh-link-prompt-enhance
+dsh plugin --profile <你的配置名称> add 'github:Yocaihua8/dsh-link-prompt-enhance#v0.2.4'
 ```
 
-以上安装默认分支当前提交。需要固定版本时，在仓库标识后加 `#<完整提交 SHA>`；更新时重新执行添加命令，并按当时 README 核对宿主兼容版本。源代码 ZIP 不等于经过 `npm pack` 检查的 `.tgz`，请使用上述 GitHub 安装命令。
+以上固定安装 0.2.4。需要测试默认分支时可去掉 `#v0.2.4`；也可改为 `#<完整提交 SHA>`。更新时重新执行添加命令，并按当时 README 核对宿主兼容版本。Release 自动生成的 Source code ZIP 用于源码开发，不是插件安装包；安装请下载 Assets 中的 `.tgz` 或使用上述命令。
 
 重新启动后，在专用测试会话检查增强按钮、设置页、预览和恢复原文，再次重启确认设置保留。使用无敏感内容的草稿，检查其他插件和原有数据是否正常。
 
-### 安装已有的安装包
+### 安装 Release 安装包
 
-若已从可信来源取得 `.tgz`，在同样的备份和退出步骤后执行：
+下载 Release 中的 `dsh-link-prompt-enhance-0.2.4.tgz` 和 `SHA256SUMS`，先核对校验值，再按同样的备份和退出步骤安装：
 
 ```powershell
-$pluginPackage = '<安装包目录>\dsh-link-prompt-enhance-0.2.3.tgz'
+$pluginPackage = '<安装包目录>\dsh-link-prompt-enhance-0.2.4.tgz'
+Get-FileHash -Algorithm SHA256 $pluginPackage
+# 将 Hash 与 SHA256SUMS 中该文件对应的值核对一致后再安装
 & $dshCli plugin --profile desktop add $pluginPackage
 ```
 

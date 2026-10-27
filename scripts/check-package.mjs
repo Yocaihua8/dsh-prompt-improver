@@ -1,2 +1,2 @@
-import { checkPackage } from '../../scripts/check-package.mjs'
+import { checkPackage } from './package-check.mjs'
 await checkPackage(import.meta.url)
