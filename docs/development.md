@@ -29,10 +29,12 @@ dsh-link-prompt-enhance/
 git clone https://github.com/Yocaihua8/dsh-link-prompt-enhance.git
 cd dsh-link-prompt-enhance
 # 复现本次 Release 时固定标签；开发默认分支时可省略
-git checkout v0.2.4
+git checkout v0.2.5
 npm ci
 npm run check
 npm run check:package
+npm audit
+npm audit --omit=dev
 ```
 
 | 命令 | 内容 |
@@ -56,13 +58,15 @@ npm pack --pack-destination $packageOutput
 
 仓库通过 `.gitattributes` 固定文本为 LF，避免 Windows 检出时的换行转换改变嵌入客户端的 CSS 字符串。构建后的 `lib` 应与提交中的产物一致；全新克隆验证会先移出已有 `lib`，检查从源码重新生成的结果。
 
-截至 2026-10-27，现有锁文件的 `npm audit` 报告 40 项依赖告警（38 高、2 中，包含依赖链传播），涉及锁定的 Zod、Undici 及 DSH 依赖链。0.2.4 未升级依赖；构建和测试通过不代表依赖审计通过。处理这些告警需另行验证与 DSH 0.2.1-rc.3 的兼容性，不应直接运行 `npm audit fix --force`。
+0.2.5 在仓库根项目中固定开发用 Zod 为 **4.6.7**，使用 `overrides.zod: "$zod"` 统一 DSH rc.3 依赖链中的旧副本，并将 Undici 覆盖为 **8.12.3**。DSH 包版本、Node.js 要求及运行时 peer 约束保持不变。2026-10-27 的 `npm audit` 和 `npm audit --omit=dev` 均返回 **0 项告警**；更新依赖或发布前仍需重新审计。
+
+这些覆盖只作用于本仓库作为根项目的 npm 安装，见 [npm overrides 说明](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#overrides)。插件安装到 DSH 后使用宿主提供的 peer 依赖，安装包不会改写宿主 ASAR、其他插件或 profile 的覆盖规则。仓库审计清零不代表整个 DSH Desktop 的依赖审计清零；宿主自带依赖的修复需由宿主版本单独交付。
 
 打包白名单包含完整 `lib`、Cordis 配置、许可证、README 和 `docs/`（含指南、验证记录及脱敏截图），不包含源码、测试、构建脚本或本机输出目录。部分开发文档链接指向仓库中的测试说明，阅读这类内容时请使用完整仓库。
 
 ### 更新 GitHub 可安装内容
 
-`lib/` 是 GitHub 安装所需的预构建产物，应与对应源码一起提交。每次修改产品源码后运行 `npm run check` 和 `npm run check:package`，检查生成物差异，再一并提交源码与 `lib`；不要手工编辑生成物。0.2.4 是构建与分发修订，增强逻辑和界面沿用 0.2.3。
+`lib/` 是 GitHub 安装所需的预构建产物，应与对应源码一起提交。每次修改产品源码后运行 `npm run check` 和 `npm run check:package`，检查生成物差异，再一并提交源码与 `lib`；不要手工编辑生成物。0.2.5 修订仓库依赖解析与回归测试，增强逻辑和界面沿用 0.2.3。
 
 Release 应从已验证的提交打标签，上传该提交经 `npm pack` 生成的 `.tgz` 和 `SHA256SUMS`。校验值记录在 Release 资产中，避免在包内文档中保存该包自身的哈希。不要将 `node_modules`、`.cache`、本机输出或未脱敏截图加入 Git。
 

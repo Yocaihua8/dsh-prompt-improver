@@ -4,6 +4,31 @@
 
 各节保留对应日期的版本、环境与验证范围。历史本机路径用于追溯，不是公开下载地址，也不是当前安装指令。
 
+## 2026-10-27：0.2.5 依赖审计修复与 rc.3 兼容验证
+
+修复前重新运行 `npm audit --json`，退出码 1，报告 **40 项依赖告警（38 高、2 中）**。它们来自 Zod 和 Undici 的 4 条安全公告，包含依赖链传播，并非 40 个独立漏洞：
+
+- [Zod 超长集合校验资源消耗](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)：修复版本为 4.6.6；本仓库固定开发依赖 4.6.7，以 `overrides.zod: "$zod"` 移除 15 份 rc.3 依赖链中的 4.4.3 副本。
+- Undici 的 [EventSource 缓冲](https://github.com/advisories/GHSA-4qv8-2p9j-2685)、[大小写 SRI 校验](https://github.com/advisories/GHSA-f72v-6w45-q472) 和[过多内容编码](https://github.com/advisories/GHSA-xjj6-f33q-929c)问题：8.12.2 已修复；本仓库覆盖为 8.12.3。
+
+DSH 包版本仍为 0.2.1-rc.3，`engines.dsh`、Node.js 最低版本及运行时 peer 约束保持不变；未使用 `npm audit fix --force`。重新构建的 20 个 `lib` 文件与 0.2.4 一致，增强逻辑和界面没有变化。
+
+在原项目之外、路径含空格的全新 Git 克隆中，移出预构建 `lib`，从 `npm ci` 开始验证。环境为 Windows / Node.js 24.14.0 / npm 11.9.0：
+
+| 检查 | 结果 |
+| --- | --- |
+| `npm ci` | 锁文件安装成功，未读取原项目的依赖目录 |
+| `npm audit --json` | 退出码 0，全部严重级别均为 **0** |
+| `npm audit --omit=dev --json` | 退出码 0，生产依赖告警 **0** |
+| `npm pack` 的正常 `prepack` | 构建、Host/Client 类型检查、**46/46 测试**及 **31 个发布文件**检查通过 |
+| 重建后的 Git 差异 | 无差异，工作区干净 |
+
+新增测试使用 rc.3 Typert Registry 实际解析到的 Zod，确认超长数组在遍历元素前被拒绝；使用 rc.3 HTTP 代理模块实际解析到的 Undici，验证回环请求、代理路由与恢复，以及大写 `SHA256` 的错误完整性值被拒绝。HTTP 验证仅连接临时回环服务。
+
+将候选 0.2.5 `.tgz` 安装到实际 DSH Desktop 0.2.1-rc.3 CLI 管理的独立 `DSH_HOME` / Web profile。20 个已安装 `lib` 文件逐字节一致，启动成功。临时宿主探针通过插件与 Typert 注册、`capabilities`、严格 schema、非所有者设置访问拒绝、无效草稿拒绝等检查，未调用模型；测试服务已停止。探针首轮的预期错误文案与实现不符，修正测试断言后复验通过，未为此修改产品代码。日用插件设置的 SHA-256 与操作前一致。
+
+**审计范围**：覆盖规则作用于本仓库的根 npm 项目，不会随插件安装改写 DSH 自带依赖。实测宿主仍提供 Zod 4.4.3 和 Undici 8.11.2；上述宿主测试证明兼容性，不证明宿主依赖已修复。整个 DSH Desktop 的依赖升级需由宿主单独交付。本次未重跑真实模型质量或完整桌面交互；不同操作系统未实测。
+
 ## 2026-10-27：0.2.4 独立构建与 Release 分发
 
 将本插件所需的构建器、包检查器、契约同步脚本和 `shared/memory-contract.ts` 纳入仓库，入口改为仓库内引用，不再读取父目录或其他插件。版本更新为 0.2.4；依赖版本、增强逻辑、接口和界面不变。`.gitattributes` 固定 LF，避免 Windows 检出后的 CSS 换行使客户端构建出现差异。README 和指南更新为版本标签安装、Release 下载与独立构建说明。
