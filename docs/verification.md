@@ -14,6 +14,8 @@
 
 重新检查 README 在 1280px 和 390px 宽度下无页面横向溢出，3 张图片加载成功，首页锚点有效。此阶段验证对象为待提交的 Git 文件快照；未修改日用 profile、会话或模型设置，未调用模型，不将隔离 Web 启动记作本次桌面交互回归。
 
+推送后，在同一独立 `DSH_HOME` 的另一个 Web 测试 profile 中执行 `dsh plugin --profile github-install-check add github:Yocaihua8/dsh-link-prompt-enhance`，退出码为 0。锁文件确认实际下载的提交为 `26002b93e662ce70138af9ae97dfb94c051e735a`，插件版本为 0.2.3；未传入跳过脚本选项，全部 20 个已安装 `lib` 文件与本次构建逐字节一致，`--dump-config` 确认插件 bundle 自动加入。GitHub 线上 README 的 3 张图片均加载成功，390px 宽度下无页面横向溢出。日用插件设置 SHA-256 与截图操作前仍一致；测试服务与文档预览已关闭。
+
 ## 2026-10-27：README 文档与真实界面截图
 
 本次只重整文档并新增截图，未修改业务代码、接口、依赖或构建流程，未制作或安装新包。安装清单核对为提示词增强 0.2.3，宿主 CLI `--version` 返回 0.2.1-rc.3。
