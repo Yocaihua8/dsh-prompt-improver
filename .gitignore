@@ -1,0 +1,7 @@
+node_modules/
+lib/
+output/
+.cache/
+.playwright-cli/
+*.tgz
+.env*

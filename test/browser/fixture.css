@@ -1,0 +1,15 @@
+html, body { margin: 0; min-width: 320px; }
+body { background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: 14px/1.6 system-ui, sans-serif; }
+.fixture { max-width: 960px; margin: auto; padding: 24px; }
+.fixture header, .fixture-actions, .fixture-composer-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.fixture header { justify-content: space-between; margin-bottom: 24px; }
+.fixture h1 { font-size: 18px; font-weight: 500; margin: 0; }
+.fixture small { color: var(--dsw-alias-label-secondary); }
+.fixture-composer { padding: 16px; border: 1px solid var(--dsw-alias-border-l4); border-radius: var(--dsw-radius-panel); margin: 24px 0; }
+.fixture-composer textarea { box-sizing: border-box; width: 100%; min-height: 120px; background: transparent; color: inherit; font: inherit; border: 0; resize: vertical; }
+.fixture-composer-tools { justify-content: flex-end; }
+.fixture-model { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.fixture-results { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px 0; }
+.fixture-checks { margin-top: 24px; border-top: 1px solid var(--dsw-alias-border-l4); padding-top: 20px; }
+.fixture-geometry { font-size: 12px; }
+@media(max-width:480px) { .fixture { padding: 16px; } }

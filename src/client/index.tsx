@@ -1,0 +1,202 @@
+import type { Context } from '@deepseek-ai/cordis'
+import { useEffect, useLayoutEffect, useMemo, useReducer, useState } from 'react'
+import { Button, Modal, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-api-gateway/client'
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { DraftInput } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { TYPERT_REMOTE } from '../../lib/typert.remote-client.js'
+import { EnhanceController } from './controller.js'
+import { EnhanceSettingsPage, SettingsClient } from './settings.js'
+import type { ControllerPort } from './controller.js'
+import { DRAFT_CHAR_LIMIT } from '../shared/types.js'
+import styles from './style.css'
+
+const labels = { moderate: '适度增强', expanded: '充分展开' } as const
+const contextLabels = { draft: '仅草稿', recent: '最近对话', extended: '扩展上下文' } as const
+
+interface ViewBinding extends Omit<ControllerPort, 'changed' | 'nonce'> {
+  subscribe(listener: () => void): () => void
+  reason(): string
+}
+
+function EnhanceIcon({ pending, restore }: { pending: boolean; restore: boolean }) {
+  return <svg className="dsh-prompt-enhance-icon" width={restore ? 16 : 18} height={restore ? 16 : 18} viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth={restore ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true" focusable="false">
+    {pending ? <>
+      <circle className="dsh-prompt-enhance-progress" cx="12" cy="12" r="9" strokeDasharray="42 15" />
+      <path d="m9 9 6 6m0-6-6 6" />
+    </> : restore ? <>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+    </> : <>
+      <path d="M9.6 5.4 11.76 10.44 16.8 12.6 11.76 14.76 9.6 19.8 7.44 14.76 2.4 12.6 7.44 10.44Z" />
+      <path d="M18 4.2 19.08 6.72 21.6 7.8 19.08 8.88 18 11.4 16.92 8.88 14.4 7.8 16.92 6.72Z" />
+    </>}
+  </svg>
+}
+
+function EnhanceButton({ binding, settings }: { binding: ViewBinding; settings: SettingsClient }) {
+  const [, render] = useReducer((n: number) => n + 1, 0)
+  const [compareOriginal, setCompareOriginal] = useState(true)
+  const [previewSettings, setPreviewSettings] = useState(settings.value)
+  const [dismissed, setDismissed] = useState('')
+  const controller = useMemo(() => new EnhanceController({ ...binding, changed: render, nonce: () => crypto.randomUUID() }), [binding])
+  useLayoutEffect(() => {
+    const unsubscribe = binding.subscribe(() => { controller.reconcile(); render() })
+    return () => { unsubscribe(); controller.dispose() }
+  }, [binding, controller])
+  useEffect(() => {
+    const stop = settings.subscribe(() => { controller.reconcile(); render() })
+    void settings.load()
+    return stop
+  }, [settings, controller])
+
+  const reason = binding.reason()
+  const mode = settings.value.mode
+  const pending = controller.pending
+  const canUndo = controller.canUndo
+  const selection = controller.preview?.response.selection ?? controller.preview?.snapshot.selection
+  const start = () => {
+    if (reason) return
+    const captured = structuredClone(settings.value)
+    setDismissed(''); setCompareOriginal(true); setPreviewSettings(captured)
+    void controller.start(mode, captured)
+  }
+  return <div className="dsh-prompt-enhance" data-prompt-enhance="true">
+    <Button variant="ghost" size="sm" type="button" className="dsh-prompt-enhance-trigger"
+        aria-label={pending ? '取消提示词增强' : canUndo ? '恢复原文' : '增强提示词'} aria-busy={pending}
+        aria-disabled={!pending && !canUndo && !!reason}
+        title={pending ? '增强中… 点击取消' : canUndo ? '恢复原文' : reason || `增强提示词 · ${labels[mode]}`}
+        onClick={() => {
+          setDismissed('')
+          if (pending) controller.cancel()
+          else if (canUndo) controller.restore()
+          else start()
+        }}><EnhanceIcon pending={pending} restore={canUndo} /></Button>
+    <span className="dsh-prompt-enhance-sr" role="status" aria-live="polite">{pending ? '增强中…' : controller.message}</span>
+    {controller.message && dismissed !== controller.message && <Toast key={controller.message}
+      text={controller.message} holdMs={4500} onDone={() => setDismissed(controller.message)} />}
+    <Modal open={!!controller.preview} onClose={() => controller.closePreview()} title="预览增强" closeLabel="保留原稿并关闭"
+      description={`${labels[previewSettings.mode]} · ${contextLabels[previewSettings.context]}`}
+      className="dsh-prompt-enhance-dialog" contentClassName="dsh-prompt-enhance-dialog-body" footer={<>
+        <Button variant="ghost" onClick={() => controller.closePreview()}>保留原稿</Button>
+        <Button variant="primary" disabled={controller.checkingPreview} onClick={() => { setDismissed(''); void controller.acceptPreview() }}>{controller.checkingPreview ? '正在核对…' : '替换草稿'}</Button>
+      </>}>
+      {controller.preview && <>
+        <div className="dsh-prompt-enhance-preview-toolbar">
+          <p className="dsh-prompt-enhance-meta">{selection?.model}{selection?.reasoningEffort && ` · ${selection.reasoningEffort}`} · {previewSettings.modelStrategy === 'follow' ? '跟随当前模型' : '专用模型'}
+            {controller.preview.snapshot.attachmentIds.length > 0 && ` · 附件保留 ${controller.preview.snapshot.attachmentIds.length} 个`}</p>
+          <label className="dsh-prompt-enhance-compare-toggle"><input type="checkbox" checked={compareOriginal} onChange={event => setCompareOriginal(event.target.checked)} />对照原文</label>
+        </div>
+        <div className={`dsh-prompt-enhance-comparison${compareOriginal ? '' : ' dsh-prompt-enhance-comparison-solo'}`}>
+          {compareOriginal && <section className="dsh-prompt-enhance-original"><h3>原文</h3><pre className="dsh-prompt-enhance-text">{controller.preview.snapshot.draft.text}</pre></section>}
+          <section><h3>增强稿</h3><pre className="dsh-prompt-enhance-text">{controller.preview.draft.text}</pre></section>
+        </div>
+        {controller.preview.response.context?.warnings.map(warning => <p className="dsh-prompt-enhance-warning" key={warning} role="status">{warning}</p>)}
+        <details className="dsh-prompt-enhance-sources"><summary>实际参考来源（{controller.preview.response.context?.sources.length ?? 0}） · 查看详情</summary>
+          {controller.preview.response.context?.sources.map((source, index) => <section className="dsh-prompt-enhance-source" key={index}><h4>{source.label}</h4><pre className="dsh-prompt-enhance-text">{source.text}</pre></section>)}
+          {!controller.preview.response.context?.sources.length && <p>本次未采用补充上下文。</p>}
+        </details>
+      </>}
+    </Modal>
+  </div>
+}
+
+function createBinding(ctx: Context, sessionId: SessionId, settings: SettingsClient): ViewBinding {
+  const session = ctx.sessions.binding(sessionId)!
+  const input = ctx.conversation.input.for(session.ctx)
+  const directory = ctx.modelDirectories.directoryFor(sessionId)
+  const blocks = ctx.conversation.blocks.storeFor(sessionId)
+  void directory.load().catch(() => {})
+
+  const reason = (): string => {
+    const state = input.state.getSnapshot()
+    const models = directory.store.getSnapshot()
+    const snapshot = session.session.getSnapshot()
+    if (ctx.sessions.binding(sessionId) !== session || snapshot.removed || snapshot.openState !== 'open') return '会话尚未就绪'
+    if (snapshot.subagent !== null) return '请在主会话中增强提示词'
+    if (state.claim || state.phase === 'claimed' || /^\s*\/\S/u.test(state.draft)) return '命令草稿不参与提示词增强'
+    if (state.phase !== 'plain' || blocks.getSnapshot() || ctx.uiSession.sessionStatus.getSnapshot().get(sessionId)?.pendingInteraction) return '当前输入框不可编辑'
+    if (!state.draft.trim()) return '先输入需要增强的提示词'
+    if (state.draft.length > DRAFT_CHAR_LIMIT) return `草稿不能超过 ${DRAFT_CHAR_LIMIT.toLocaleString()} 字符`
+    if (!settings.ready) return settings.error || '正在读取提示词增强设置'
+    if (settings.value.modelStrategy === 'dedicated') {
+      const selected = settings.value.dedicated
+      if (!selected || !settings.capabilities.models.some(model => model.provider === selected.provider && model.model === selected.model && (!selected.reasoningEffort || model.efforts.includes(selected.reasoningEffort)))) return '专用增强模型或推理档位不可用，请前往 DSH 设置 → 提示词增强'
+    } else if (models.status !== 'ready' || !models.routable || !models.current) return '请先选择可用模型'
+    return ''
+  }
+
+  return {
+    reason,
+    read: () => {
+      const state = input.state.getSnapshot()
+      return {
+        sessionId, revision: state.draftRev,
+        draft: { text: state.draft, references: state.occurrences.map(({ occurrenceId: _id, ...reference }) => ({ ...reference })) },
+        attachmentIds: [...state.attachmentIds], selection: settings.value.modelStrategy === 'dedicated' ? settings.value.dedicated : directory.store.getSnapshot().current,
+        available: reason() === '',
+      }
+    },
+    write: draft => {
+      // DSH 0.2.1-rc.3 accepts DraftInput here at runtime, although the
+      // public SessionInput declaration still advertises only string.
+      // Keep this version-specific adaptation in one place and verify it in DSH.
+      const writeSemantic = input.setDraft.bind(input) as (value: DraftInput) => void
+      writeSemantic(draft as DraftInput)
+    },
+    enhance: async (request, signal) => {
+      const result = await ctx.remote.promptEnhance.enhance(request, signal)
+      if (!result.ok) throw new Error(result.error.message)
+      return result.value
+    },
+    validateSelection: async (selection, signal) => {
+      const capabilities = await ctx.remote.promptEnhance.capabilities(signal)
+      if (!capabilities.ok) throw new Error(capabilities.error.message)
+      if (!capabilities.value.owner) {
+        await directory.load()
+        return directory.store.getSnapshot().routable === true
+      }
+      return capabilities.value.models.some(model => model.provider === selection.provider && model.model === selection.model && (!selection.reasoningEffort || model.efforts.includes(selection.reasoningEffort)))
+    },
+    subscribe: listener => {
+      const dispose = [input.state.subscribe(listener), directory.store.subscribe(listener),
+        session.session.subscribe(listener), blocks.subscribe(listener), ctx.uiSession.sessionStatus.subscribe(listener)]
+      return () => { for (const stop of dispose) stop() }
+    },
+  }
+}
+
+export const inject = ['remote', 'slots', 'sessions', 'conversation', 'modelDirectories', 'uiSession']
+
+/** Mount the generated Remote contribution and the native composer slot together. */
+export async function apply(ctx: Context): Promise<() => Promise<void>> {
+  const unmountRemote = await ctx.remote.$mount(TYPERT_REMOTE)
+  const ui = ctx.inject(['remote.promptEnhance', 'remote.session', 'slots', 'sessions', 'conversation', 'modelDirectories', 'uiSession'], scope => {
+    const settings = new SettingsClient(scope)
+    scope.effect(() => () => settings.dispose())
+    const style = document.createElement('style')
+    style.dataset.dshPlugin = 'dsh-link-prompt-enhance'
+    style.textContent = styles
+    document.head.append(style)
+    scope.effect(() => () => style.remove())
+    scope.slots.inject('conversation.input.right', () => scope.slots.register({
+      name: 'conversation.input.right', id: 'dsh-link-prompt-enhance', order: 100,
+      inject: sessionId => ({ binding: createBinding(scope, sessionId, settings), settings }),
+    }, EnhanceButton))
+    scope.slots.inject('settings.section', () => scope.slots.register({
+      name: 'settings.section', id: 'dsh-link-prompt-enhance', order: 45, label: () => '提示词增强',
+      inject: () => ({ settings }),
+    }, EnhanceSettingsPage))
+  })
+  try { await ui }
+  catch (error) { await ui.dispose(); await unmountRemote(); throw error }
+  return async () => { await ui.dispose(); await unmountRemote() }
+}

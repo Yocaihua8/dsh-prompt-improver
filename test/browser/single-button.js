@@ -1,0 +1,114 @@
+// Run by the isolated fixture using the actual built plugin and native DSH primitives.
+// All simulated events and RPC responses are test-only; no daily profile is accessed.
+export async function runChecks(h, report) {
+  const check = (condition, message) => { if (!condition) throw new Error(message) }
+  const wait = async predicate => {
+    const until = performance.now() + 4000
+    // React batches these test events; observe the next commit before accepting an old state.
+    await new Promise(resolve => setTimeout(resolve, 20))
+    while (!predicate()) { if (performance.now() > until) throw new Error('等待 UI 状态超时'); await new Promise(resolve => setTimeout(resolve, 20)) }
+  }
+  const trigger = () => document.querySelector('[data-prompt-enhance] > button')
+  const dialog = () => document.querySelector('[role="dialog"][aria-label="预览增强"]')
+  const button = text => [...document.querySelectorAll('button')].find(el => el.textContent === text)
+  const setSelect = (select, value) => { const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, value); select.dispatchEvent(new Event('change', { bubbles: true })) }
+  const adopt = async () => { trigger().click(); await wait(() => h.requests.at(-1) && trigger().getAttribute('aria-busy') === 'true'); h.complete(); await wait(() => trigger().getAttribute('aria-label') === '恢复原文') }
+  h.setAuto(false); h.configure({}); h.edit(h.initial)
+  await wait(() => trigger()?.getAttribute('aria-label') === '增强提示词')
+  const originalPaths = [...trigger().querySelectorAll('path')].map(path => path.getAttribute('d'))
+  check(originalPaths[0] === 'M9.6 5.4 11.76 10.44 16.8 12.6 11.76 14.76 9.6 19.8 7.44 14.76 2.4 12.6 7.44 10.44Z', '保留原星光图标')
+  const rect = trigger().getBoundingClientRect()
+  check(rect.width === 28 && rect.height === 28 && trigger().querySelector('svg').getAttribute('width') === '18', '保留按钮和图标尺寸')
+  check(!trigger().hasAttribute('aria-haspopup') && !/右键|F10/.test(trigger().title), '去掉菜单语义与提示')
+  trigger().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+  trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true }))
+  check(!document.querySelector('[role="menu"]'), '右键和 Shift+F10 不打开插件菜单')
+  h.edit(''); await wait(() => trigger().getAttribute('aria-disabled') === 'true')
+  const emptyCount = h.requests.length; trigger().click()
+  check(h.requests.length === emptyCount && !dialog(), '空草稿不能增强或打开弹窗')
+  h.edit(h.initial); await wait(() => trigger().getAttribute('aria-disabled') === 'false')
+  report('PASS: 原图标、单按钮、空草稿、无增强菜单')
+
+  await adopt()
+  check(!dialog() && !document.querySelector('[role="dialog"]'), '直接采用不弹窗')
+  check(trigger().textContent === '' && trigger().parentElement.querySelectorAll('button').length === 1, '采用后仍只有一个图标按钮')
+  check(trigger().querySelector('path').getAttribute('d') === 'M9 14 4 9l5-5', '采用后为确认过的返回图标')
+  const count = h.requests.length
+  trigger().click()
+  await wait(() => trigger().getAttribute('aria-label') === '增强提示词')
+  check(h.inputState.getSnapshot().draft === h.initial && h.requests.length === count, '返回恢复原文，不发新请求')
+  check(JSON.stringify([...trigger().querySelectorAll('path')].map(path => path.getAttribute('d'))) === JSON.stringify(originalPaths), '恢复后原星光不变')
+  report('PASS: 直接替换、原位返回、恢复原文')
+
+  trigger().click(); await wait(() => trigger().getAttribute('aria-busy') === 'true')
+  const cancelled = h.requests.length - 1
+  trigger().click(); h.complete(cancelled)
+  await wait(() => trigger().getAttribute('aria-busy') === 'false')
+  check(h.requests[cancelled].signal.aborted && h.inputState.getSnapshot().draft === h.initial, '取消后迟到结果不能采用')
+  trigger().click(); await wait(() => trigger().getAttribute('aria-busy') === 'true')
+  const edited = h.requests.length - 1
+  h.edit('等待期间的新草稿'); h.complete(edited)
+  await wait(() => trigger().getAttribute('aria-busy') === 'false')
+  check(h.requests[edited].signal.aborted && h.inputState.getSnapshot().draft === '等待期间的新草稿', '等待时编辑拒绝迟到结果')
+  h.edit(h.initial)
+  report('PASS: 原按钮取消、等待时编辑与迟到结果保护')
+
+  h.configure({ adoption: 'preview' }); await wait(() => trigger().getAttribute('aria-busy') === 'false')
+  trigger().focus(); trigger().click(); await wait(() => trigger().getAttribute('aria-busy') === 'true'); h.complete()
+  await wait(dialog)
+  check(h.inputState.getSnapshot().draft === h.initial, '预览未采用前不改草稿')
+  check(dialog().querySelectorAll('.dsh-prompt-enhance-comparison section').length === 2, '原文对照并排')
+  const summary = dialog().querySelector('summary'); summary.click()
+  check(summary.parentElement.open && summary.parentElement.textContent.includes('最近对话 · 测试来源'), '来源详情可展开')
+  check(dialog().textContent.includes('记忆服务不可用（测试提示）。'), '必要提示保留')
+  check(!dialog().textContent.includes('采用后仍由你发送'), '删除多余底栏文字')
+  button('保留原稿').click(); await wait(() => !dialog())
+  check(h.inputState.getSnapshot().draft === h.initial && document.activeElement === trigger(), '关闭保留草稿并归还焦点')
+  trigger().click(); await wait(() => trigger().getAttribute('aria-busy') === 'true'); h.complete(); await wait(dialog)
+  button('替换草稿').click(); await wait(() => !dialog() && trigger().getAttribute('aria-label') === '恢复原文')
+  check(document.activeElement === trigger(), '采用后焦点返回同一按钮')
+  trigger().click(); await wait(() => h.inputState.getSnapshot().draft === h.initial)
+  report('PASS: 预览对照、来源、必要提示、采用/关闭及焦点')
+
+  trigger().click(); await wait(() => trigger().getAttribute('aria-busy') === 'true'); h.complete(); await wait(dialog)
+  h.setModels(false); button('替换草稿').click(); await wait(() => !dialog())
+  check(h.inputState.getSnapshot().draft === h.initial, '模型不可用时预览拒绝采用')
+  h.setModels(true); h.configure({})
+  await adopt(); h.edit('后续编辑')
+  await wait(() => trigger().getAttribute('aria-label') === '增强提示词')
+  check(h.inputState.getSnapshot().draft === '后续编辑', '编辑后不可用旧撤销覆盖')
+  trigger().click(); await wait(() => trigger().getAttribute('aria-busy') === 'true')
+  const stale = h.requests.length - 1; h.switchSession(); h.complete(stale)
+  await wait(() => trigger().getAttribute('aria-busy') === 'false')
+  check(h.requests[stale].signal.aborted && h.inputState.getSnapshot().draft === '另一会话的草稿', '切换会话拒绝过期结果')
+  report('PASS: 不可用模型、编辑后撤销失效、切换会话保护')
+
+  h.openSettings(); await wait(() => button('保存设置') && !button('刷新模型与设置').disabled)
+  check(button('保存设置').disabled && document.body.textContent.includes('设置已保存'), '未改设置不能保存')
+  const adoption = document.querySelector('.dsh-prompt-enhance-settings select')
+  setSelect(adoption, 'preview'); await wait(() => !button('保存设置').disabled)
+  check(document.body.textContent.includes('有未保存的修改'), '未保存状态明确')
+  button('刷新模型与设置').click(); await wait(() => !button('刷新模型与设置').disabled)
+  check(adoption.value === 'preview', '刷新保留未保存的编辑')
+  h.setSaveFailure(true); button('保存设置').click(); await wait(() => document.body.textContent.includes('测试保存失败'))
+  check(h.saved().adoption === 'direct' && adoption.value === 'preview', '保存失败保留未保存编辑')
+  h.setSaveFailure(false); button('保存设置').click(); await wait(() => button('保存设置').disabled && h.saved().adoption === 'preview')
+  for (const select of document.querySelectorAll('.dsh-prompt-enhance-settings select')) {
+    const box = select.getBoundingClientRect(), arrow = select.parentElement.querySelector('svg').getBoundingClientRect()
+    check(Math.abs(box.top + box.height / 2 - arrow.top - arrow.height / 2) < 0.5 && Math.abs(box.right - arrow.right - 12) < 0.5, '下拉箭头居中且右间距 12px')
+  }
+  report('PASS: 设置保存/未保存/失败、刷新保留编辑、箭头对齐')
+  h.closeSettings(); await wait(() => !document.querySelector('[role="dialog"]'))
+  h.configure({ modelStrategy: 'dedicated', dedicated: { provider: 'fixture', model: 'removed-model', reasoningEffort: 'high' } })
+  h.openSettings(); await wait(() => button('保存设置') && !button('刷新模型与设置').disabled)
+  check(button('保存设置').disabled && document.body.textContent.includes('专用模型不可用，请重新选择'), '模型不可用有明确提示且不能保存')
+  h.closeSettings(); await wait(() => !document.querySelector('[role="dialog"]'))
+  h.configure({ modelStrategy: 'dedicated', dedicated: { provider: 'fixture', model: 'fixture-model', reasoningEffort: 'removed-effort' } })
+  h.openSettings(); await wait(() => button('保存设置') && !button('刷新模型与设置').disabled)
+  check(button('保存设置').disabled && document.body.textContent.includes('推理档位不可用，请重新选择'), '失效档位不能默默改用默认')
+  h.closeSettings(); await wait(() => !document.querySelector('[role="dialog"]'))
+  h.configure({}); h.edit(h.initial); h.setAuto(true)
+  check(h.inputState.getSnapshot().attachmentIds[0] === 'fixture-attachment', '附件身份保留')
+  report('PASS: 专用模型/档位不可用与附件保护')
+  report('完成：7 组 UI 回归通过；没有 Host 连接、模型调用或消息发送。')
+}
