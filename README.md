@@ -1,5 +1,7 @@
 # DSH Prompt Improver · 提示词增强
 
+简体中文 · [English](README.en.md)
+
 在 DSH 输入框中，把草稿整理成更清晰的提示词。直接替换，或先对照预览，再决定是否采用。
 
 **插件 0.2.6 · 适配 DSH 0.2.1-rc.3 · MIT 许可证**

@@ -22,7 +22,7 @@ export async function checkPackage(entryUrl) {
       } else assert.ok(files.has(relative), `Missing export: ${path}`)
     }
   }
-  for (const required of ['README.md', 'LICENSE', 'cordis.patch.yml', 'docs/verification.md',
+  for (const required of ['README.md', 'README.en.md', 'LICENSE', 'cordis.patch.yml', 'docs/verification.md',
     'docs/guide.md', 'docs/development.md', 'docs/screenshots/README.md',
     'docs/screenshots/enhance-entry.png', 'docs/screenshots/enhance-preview.png', 'docs/screenshots/enhance-settings.png']) {
     assert.ok(files.has(required), `Missing ${required}`)

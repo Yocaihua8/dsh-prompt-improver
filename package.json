@@ -48,6 +48,7 @@
     "lib/typert.remote-client.d.ts",
     "cordis.patch.yml",
     "README.md",
+    "README.en.md",
     "LICENSE",
     "docs"
   ],

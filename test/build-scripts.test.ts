@@ -31,7 +31,7 @@ test('local contract sync detects stale copies without changing them and normali
 test('package validation checks the real tarball file list and rejects missing exports or escaping imports', async t => {
   const root = await mkdtemp(join(tmpdir(), 'prompt-enhance-package-'))
   t.after(() => rm(root, { recursive: true, force: true }))
-  for (const name of ['package.json', 'lib', 'docs', 'README.md', 'LICENSE', 'cordis.patch.yml', 'shared']) {
+  for (const name of ['package.json', 'lib', 'docs', 'README.md', 'README.en.md', 'LICENSE', 'cordis.patch.yml', 'shared']) {
     await cp(join(repository, name), join(root, name), { recursive: true })
   }
   await syncShared(root)
