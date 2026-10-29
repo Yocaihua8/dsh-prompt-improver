@@ -6,7 +6,9 @@
 
 **插件 0.2.6 · 适配 DSH 0.2.1-rc.3 · MIT 许可证**
 
-[安装与上手](#安装与上手) · [常用设置](#常用设置) · [使用指南](docs/guide.md) · [问题反馈](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
+已收录到 **dsh-market**：[市场页面](https://awesome-dsh-plugin.com/p/Yocaihua8/dsh-prompt-improver/) · [收录记录](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/9972)。
+
+[插件市场](#通过插件市场安装) · [安装与上手](#安装与上手) · [常用设置](#常用设置) · [使用指南](docs/guide.md) · [问题反馈](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
 
 ## 看看它如何工作
 
@@ -36,6 +38,14 @@
 
 - 已安装 **DSH 0.2.1-rc.3**，并配置好可用模型。
 - 能访问 GitHub 和 npm 依赖源。
+
+### 通过插件市场安装
+
+打开[市场安装页面](https://awesome-dsh-plugin.com/p/Yocaihua8/dsh-prompt-improver/)查看截图和安装方式。已安装 `dshmarket` 的用户，也可在 DSH 的“插件市场”中搜索 `dsh-prompt-improver`。
+
+市场条目目前指向 **v0.2.6** 的预构建包。不同分发源可能存在同步延迟；搜索不到时，可先通过市场页面或下方 Release 入口安装。
+
+### 从 GitHub Release 安装
 
 从 [v0.2.6 Release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.6) 下载 `.tgz` 安装包和 SHA-256 校验文件，或使用下面的命令从同一版本标签安装。两种方式均包含预构建的 `lib`，无需在本机编译插件。
 

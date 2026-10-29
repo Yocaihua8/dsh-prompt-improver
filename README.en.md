@@ -6,7 +6,9 @@ Turn a draft in the DSH input box into a clearer prompt. Apply the result direct
 
 **Plugin 0.2.6 · Compatible with DSH 0.2.1-rc.3 · MIT license**
 
-[Get started](#get-started) · [Common settings](#common-settings) · [User guide](docs/guide.en.md) · [Report an issue](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
+Listed in **dsh-market**: [market page](https://awesome-dsh-plugin.com/p/Yocaihua8/dsh-prompt-improver/) · [accepted submission](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/9972).
+
+[Plugin market](#install-from-the-plugin-market) · [Get started](#get-started) · [Common settings](#common-settings) · [User guide](docs/guide.en.md) · [Report an issue](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
 
 ## See it in action
 
@@ -36,6 +38,14 @@ Open **DSH Settings → Prompt enhancement** (提示词增强) to choose the enh
 
 - **DSH 0.2.1-rc.3**, with a working model configured.
 - Network access to GitHub and the npm registry used by your installation.
+
+### Install from the plugin market
+
+Open the [market installation page](https://awesome-dsh-plugin.com/p/Yocaihua8/dsh-prompt-improver/) for screenshots and installation options. If you have `dshmarket` installed, you can also search for `dsh-prompt-improver` in DSH's **Plugin Market**.
+
+The catalog entry currently points to the **v0.2.6** prebuilt package. Distribution sources may sync at different times; if search does not find the plugin yet, use the market page or the Release installation below.
+
+### Install from a GitHub Release
 
 Download the `.tgz` package and `SHA256SUMS` from the [v0.2.6 release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.6), or install from the same GitHub tag using the command below. Both include the prebuilt `lib` directory; you do not need to compile the plugin locally.
 
