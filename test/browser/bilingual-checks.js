@@ -1,0 +1,35 @@
+async (page) => {
+ const check=(ok,message)=>{if(!ok)throw Error(message)}
+ await page.evaluate(()=>{window.harness.configure({adoption:'preview'});window.harness.setAuto(false);window.harness.setLocale('zh');window.harness.edit('Explain rainbows.');window.harness.openSettings()})
+ const settings=page.locator('.dsh-prompt-enhance-settings')
+ await page.getByRole('switch',{name:'输入预测',exact:true}).click()
+ await page.evaluate(()=>window.harness.setLocale('en'))
+ const prediction=page.getByRole('switch',{name:'Input prediction',exact:true})
+ check(await prediction.getAttribute('aria-checked')==='true','unsaved prediction switch retained')
+ check(await settings.getByText('Unsaved changes',{exact:true}).isVisible(),'unsaved state translated')
+ check(await settings.evaluate(el=>!/[\p{Script=Han}]/u.test(el.textContent.replaceAll('测试模型（固定响应）',''))),'no plugin Chinese in English settings')
+ const geometry=[]
+ for(const theme of ['dark','light'])for(const width of [1000,420,320]){
+  await page.evaluate(dark=>{document.body.toggleAttribute('data-ds-dark-theme',dark);document.documentElement.style.colorScheme=dark?'dark':'light'},theme==='dark')
+  await page.setViewportSize({width,height:1000});await prediction.scrollIntoViewIfNeeded()
+  const item=await settings.evaluate(el=>({width:innerWidth,overflow:el.scrollWidth>el.clientWidth+1,right:[...el.querySelectorAll('[role=switch]')].map(s=>Math.round(s.getBoundingClientRect().right))}))
+  check(!item.overflow && Math.abs(item.right[0]-item.right[1])<=1,`settings geometry ${theme}/${width}`);geometry.push({theme,...item})
+  await page.screenshot({path:`output/playwright/bilingual-prompt-${theme}-${width}.png`})
+ }
+ await page.getByRole('button',{name:'Cancel',exact:true}).click()
+ check(await prediction.getAttribute('aria-checked')==='false','cancel restores unsaved setting')
+ await page.evaluate(()=>window.harness.closeSettings());await page.setViewportSize({width:1000,height:900})
+ await page.getByRole('button',{name:'Enhance prompt',exact:true}).click()
+ const count=await page.evaluate(()=>window.harness.requests.length)
+ await page.evaluate(()=>window.harness.setLocale('zh'))
+ check(await page.evaluate(()=>!window.harness.requests.at(-1).signal.aborted),'locale does not cancel pending enhancement')
+ await page.evaluate(()=>{window.harness.complete();window.harness.setLocale('en')})
+ const preview=page.getByRole('dialog',{name:'Enhancement preview',exact:true});await preview.waitFor()
+ const contents=await preview.locator('pre').allTextContents()
+ await page.evaluate(()=>window.harness.setLocale('zh'))
+ check(JSON.stringify(await page.getByRole('dialog',{name:'预览增强',exact:true}).locator('pre').allTextContents())===JSON.stringify(contents),'preview model text preserved')
+ check(await page.evaluate(()=>window.harness.requests.length)===count,'no duplicate request on locale changes')
+ await page.keyboard.press('Escape')
+ check(await page.getByRole('dialog').count()===0,'Esc closes preview')
+ console.log(JSON.stringify({passed:['unsaved settings','live preview','pending request','no duplicate requests','Esc','English settings','dark/light layout'],geometry}))
+}

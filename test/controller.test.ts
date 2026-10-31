@@ -8,7 +8,8 @@ import { DEFAULT_SETTINGS } from '../src/shared/types.js'
 function harness(validateSelection?: (selection: unknown, signal: AbortSignal) => Promise<boolean>) {
   let state: ComposerSnapshot = {
     sessionId: 's1', revision: 1, draft: { text: '解释闭包', references: [] },
-    attachmentIds: ['image-1'], selection: { provider: 'test', model: 'm1', reasoningEffort: 'high' }, available: true,
+    attachmentIds: ['image-1'], selection: { provider: 'test', model: 'm1', reasoningEffort: 'high' },
+    current: { provider: 'test', model: 'm1', reasoningEffort: 'high' }, available: true,
   }
   let settle!: (value: EnhanceResponse) => void
   let reject!: (reason: Error) => void
@@ -37,6 +38,7 @@ test('selected model, effort and mode are captured; success fills without sendin
   const run = h.controller.start('expanded')
   assert.equal(h.requests[0]?.request.mode, 'expanded')
   assert.deepEqual(h.requests[0]?.request.selection, h.read().selection)
+  assert.deepEqual(h.requests[0]?.request.currentSelection, h.read().current)
   h.settle('用一个简短例子解释 JavaScript 闭包。')
   await run
   assert.equal(h.read().draft.text, '用一个简短例子解释 JavaScript 闭包。')
@@ -127,6 +129,17 @@ for (const [name, patch] of Object.entries({
     assert.equal(h.writes.length, 0)
   })
 }
+
+test('composer model change cancels even when the enhancement model stays fixed', async () => {
+  const h = harness()
+  const run = h.controller.start('moderate')
+  h.change({ current: { provider: 'test', model: 'm9' } })
+  h.controller.reconcile()
+  assert.equal(h.requests[0]?.signal.aborted, true)
+  h.settle('迟到结果')
+  await run
+  assert.equal(h.writes.length, 0)
+})
 
 test('last-moment revision change is checked even before subscription reconciliation', async () => {
   const h = harness()

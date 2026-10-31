@@ -1,14 +1,26 @@
 # DSH Prompt Improver · 提示词增强
 
+当前发布版本 **0.2.12**，兼容 DSH 0.2.1-rc.3 / 0.2.1-rc.4 / 0.2.1-rc.5。
+
+## 0.2.11 中英文界面
+
+插件界面跟随 DSH「设置 → 通用 → 语言」即时切换，不新增语言开关。设置、增强入口、预览、来源、错误和灰字快捷键提示均支持中英文；切换保留未保存设置、预览和进行中请求，不触发模型调用。增强稿与预测内容继续跟随草稿和会话语言。保留当前设置布局，不恢复已移除的预测参考说明。
+
 简体中文 · [English](README.en.md)
 
 在 DSH 输入框中，把草稿整理成更清晰的提示词。直接替换，或先对照预览，再决定是否采用。
 
-**插件 0.2.6 · 适配 DSH 0.2.1-rc.3 · MIT 许可证**
+**插件 0.2.12 · 适配 DSH 0.2.1-rc.3 / 0.2.1-rc.4 / 0.2.1-rc.5 · MIT 许可证**
+
+0.2.8 增加默认关闭的输入预测：在设置中启用后，空白输入框可预测下一句话，输入停顿后可续写末尾。浅色建议按 **Tab** 才写入草稿，**Esc** 隐藏；沿用增强模型，会产生模型用量。非项目会话的个人记忆需要配套 `dsh-memory 0.1.8-rc.2`。
 
 已收录到 **dsh-market**：[市场页面](https://awesome-dsh-plugin.com/p/Yocaihua8/dsh-prompt-improver/) · [收录记录](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/9972)。
 
 [插件市场](#通过插件市场安装) · [安装与上手](#安装与上手) · [常用设置](#常用设置) · [使用指南](docs/guide.md) · [问题反馈](https://github.com/Yocaihua8/dsh-prompt-improver/issues)
+
+0.2.9 修复实机发现的空框占位文字与灰字重叠，以及发送后首条预测缺少原生撤销基线的问题；验收范围见[验证记录](docs/verification.md)。
+
+0.2.10 按确认的原型调整“神秘提示词注入”和“输入预测”：使用靠右对齐的原生开关、简短说明及独立快捷键/用量提示，移除预测参考说明区域。设置仍在保存后生效。
 
 ## 看看它如何工作
 
@@ -36,18 +48,18 @@
 
 ### 安装前
 
-- 已安装 **DSH 0.2.1-rc.3**，并配置好可用模型。
+- 已安装 **DSH 0.2.1-rc.3 / 0.2.1-rc.4 / 0.2.1-rc.5** 之一，并配置好可用模型。
 - 能访问 GitHub 和 npm 依赖源。
 
 ### 通过插件市场安装
 
 打开[市场安装页面](https://awesome-dsh-plugin.com/p/Yocaihua8/dsh-prompt-improver/)查看截图和安装方式。已安装 `dshmarket` 的用户，也可在 DSH 的“插件市场”中搜索 `dsh-prompt-improver`。
 
-市场条目目前指向 **v0.2.6** 的预构建包。不同分发源可能存在同步延迟；搜索不到时，可先通过市场页面或下方 Release 入口安装。
+市场条目目前指向 **v0.2.12** 的预构建包。不同分发源可能存在同步延迟；搜索不到时，可先通过市场页面或下方 Release 入口安装。
 
 ### 从 GitHub Release 安装
 
-从 [v0.2.6 Release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.6) 下载 `.tgz` 安装包和 SHA-256 校验文件，或使用下面的命令从同一版本标签安装。两种方式均包含预构建的 `lib`，无需在本机编译插件。
+从 [v0.2.12 Release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.12) 下载 `.tgz` 安装包和 SHA-256 校验文件，或使用下面的命令从同一版本标签安装。两种方式均包含预构建的 `lib`，无需在本机编译插件。
 
 **旧版用户注意**：0.2.6 起仓库和安装包改名为 `dsh-prompt-improver`。已安装 `dsh-link-prompt-enhance` 的用户须先按[改名迁移步骤](docs/guide.md#从旧包名迁移)移除旧包，再安装新包；现有增强设置继续沿用。
 
@@ -55,7 +67,7 @@
 
 ```powershell
 $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
-& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.12'
 ```
 
 使用 **DSH Desktop 自带的 CLI**。独立 CLI 用户将 `desktop` 替换为已有 Web profile 的名称。Release 安装包、开发分支及回滚步骤见[安装与回滚指南](docs/guide.md#安装与回滚)。
@@ -80,13 +92,16 @@ $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
 | 增强后 | 直接替换草稿 | 希望先对照检查时，选“先预览，再决定” |
 | 参考范围 | 最近对话 | 独立问题选“仅草稿”；需要记忆和项目片段时选“扩展上下文” |
 | 增强模型 | 跟随当前模型 | 希望与聊天使用不同模型时，选“指定专用模型” |
+| 启用输入预测 | 关闭 | 根据最近对话和记忆预测下一句话或续写；Tab 接受，Esc 隐藏 |
+| 神秘提示词注入 | 关闭 | 当前会话选择的模型是 DeepSeek 时，在增强稿开头注入能力解放声明；其他模型自动跳过 |
 
 升级会保留已有设置；旧版增强方式会在首次读取时迁移。专用模型不可用时会提示失败，不会自动换用其他模型。更多说明见[使用指南](docs/guide.md)。
 
 ## 数据与费用
 
 - 草稿和所选参考范围内的内容会发送给增强模型，费用按该模型服务的规则计算。
-- “仅草稿”不读取历史、记忆或项目文件；“最近对话”最多参考最近 3 轮已完成对话。
+- 手动增强选择“仅草稿”时不读取历史、记忆或项目文件；“最近对话”最多参考最近 3 轮已完成对话。
+- 输入预测独立参考最近 3 轮已完成对话和可用记忆，不读取项目文件或附件正文；未按 Tab 的建议不会进入消息或记忆。
 - “扩展上下文”可读取个人及同项目记忆、当前项目片段，需要宿主所有者权限和相应服务支持；不会写入记忆。
 - 增强不会上传附件正文，结构化 `@引用` 会校验并恢复。模型仍可能遗漏要求，采用后请检查内容。
 

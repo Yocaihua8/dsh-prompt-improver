@@ -2,6 +2,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { Capabilities, EnhanceSettings } from '../shared/types.js';
 export declare class SettingsClient {
     private readonly ctx;
+    readonly enhancing: Set<string>;
+    setEnhancing(sessionId: string, busy: boolean): void;
     value: EnhanceSettings;
     capabilities: Capabilities;
     ready: boolean;

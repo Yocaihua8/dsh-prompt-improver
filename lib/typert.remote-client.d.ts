@@ -4,19 +4,21 @@ import type {
   TypertRemoteInfo,
   TypertRemoteMethod,
 } from '@deepseek-ai/dsh-typert-protocol'
-import type { Capabilities, EnhanceRequest, EnhanceResponse, EnhanceSettings } from 'dsh-prompt-improver/types'
+import type { Capabilities, EnhanceRequest, EnhanceResponse, EnhanceSettings, PredictionRequest, PredictionResponse } from 'dsh-prompt-improver/types'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$70726f6d7074456e68616e6365 {
     capabilities: (signal?: AbortSignal) => Promise<RemoteResult<Capabilities>>
     enhance: (request: EnhanceRequest, signal?: AbortSignal) => Promise<RemoteResult<EnhanceResponse>>
     getSettings: (legacyMode: string | undefined, signal?: AbortSignal) => Promise<RemoteResult<EnhanceSettings>>
+    predict: (request: PredictionRequest, signal?: AbortSignal) => Promise<RemoteResult<PredictionResponse>>
     saveSettings: (settings: EnhanceSettings, signal?: AbortSignal) => Promise<RemoteResult<EnhanceSettings>>
   }
   interface TypertRemoteMap {
     'promptEnhance/capabilities': (signal?: AbortSignal) => Promise<RemoteResult<Capabilities>>
     'promptEnhance/enhance': (request: EnhanceRequest, signal?: AbortSignal) => Promise<RemoteResult<EnhanceResponse>>
     'promptEnhance/getSettings': (legacyMode: string | undefined, signal?: AbortSignal) => Promise<RemoteResult<EnhanceSettings>>
+    'promptEnhance/predict': (request: PredictionRequest, signal?: AbortSignal) => Promise<RemoteResult<PredictionResponse>>
     'promptEnhance/saveSettings': (settings: EnhanceSettings, signal?: AbortSignal) => Promise<RemoteResult<EnhanceSettings>>
   }
   interface TypertRemoteNamespaceMap {
@@ -28,6 +30,7 @@ export declare const TYPERT_REMOTE: TypertRemoteInfo<{
   readonly 'promptEnhance/capabilities': TypertRemoteMethod<{  }, Capabilities>
   readonly 'promptEnhance/enhance': TypertRemoteMethod<{ readonly 'request': EnhanceRequest }, EnhanceResponse>
   readonly 'promptEnhance/getSettings': TypertRemoteMethod<{ readonly 'legacyMode'?: string | undefined }, EnhanceSettings>
+  readonly 'promptEnhance/predict': TypertRemoteMethod<{ readonly 'request': PredictionRequest }, PredictionResponse>
   readonly 'promptEnhance/saveSettings': TypertRemoteMethod<{ readonly 'settings': EnhanceSettings }, EnhanceSettings>
 }>
 export default TYPERT_REMOTE

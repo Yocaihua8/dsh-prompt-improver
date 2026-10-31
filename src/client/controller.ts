@@ -1,3 +1,4 @@
+import { m } from '../shared/messages.js'
 import { protectReferences, restoreReferences } from '../shared/references.js'
 import type { SemanticDraft } from '../shared/references.js'
 import { sameSelection } from '../shared/types.js'
@@ -9,6 +10,8 @@ export interface ComposerSnapshot {
   draft: SemanticDraft
   attachmentIds: readonly string[]
   selection: ModelSelection | null
+  /** Composer model; the mystery injection is gated on it, not on `selection`. */
+  current: ModelSelection | null
   available: boolean
 }
 
@@ -28,7 +31,7 @@ export interface Preview { snapshot: ComposerSnapshot; draft: SemanticDraft; res
 function sameComposer(a: ComposerSnapshot, b: ComposerSnapshot): boolean {
   return a.sessionId === b.sessionId && a.revision === b.revision &&
     JSON.stringify(a.draft) === JSON.stringify(b.draft) &&
-    sameSelection(a.selection, b.selection) && a.available === b.available &&
+    sameSelection(a.selection, b.selection) && sameSelection(a.current, b.current) && a.available === b.available &&
     a.attachmentIds.length === b.attachmentIds.length &&
     a.attachmentIds.every((id, i) => id === b.attachmentIds[i])
 }
@@ -53,7 +56,7 @@ export class EnhanceController {
     if (this.disposed) return
     const snapshot = this.port.read()
     if (this.active && !sameComposer(snapshot, this.active.snapshot)) {
-      this.cancel('草稿、附件、会话或模型已变化，已取消增强。')
+      this.cancel(m("m000"))
     }
     if (this.undo && !sameComposer(snapshot, this.undo.applied)) {
       this.undo = undefined
@@ -61,12 +64,12 @@ export class EnhanceController {
     }
     if (this.preview && !sameComposer(snapshot, this.preview.snapshot)) {
       this.closePreview()
-      this.message = '草稿、附件、会话或有效模型已变化，预览已失效。'
+      this.message = m("m001")
       this.port.changed()
     }
   }
 
-  cancel(message = '已取消增强。'): void {
+  cancel(message = m("m002")): void {
     const active = this.active
     if (!active) return
     this.active = undefined
@@ -92,14 +95,15 @@ export class EnhanceController {
         protectedTokens: protectedDraft.tokens,
         mode,
         selection: { ...snapshot.selection },
+        currentSelection: snapshot.current ? { ...snapshot.current } : null,
         ...(settings ? { settings: structuredClone(settings) } : {}),
       }, active.abort.signal)
       if (this.disposed || this.active !== active || active.abort.signal.aborted) return
       if (!sameComposer(this.port.read(), snapshot)) {
-        this.cancel('草稿状态已变化，增强结果未回填。')
+        this.cancel(m("m003"))
         return
       }
-      if (!result.text.trim()) throw new Error('模型返回了空结果，已保留原文。')
+      if (!result.text.trim()) throw new Error(m("m004"))
       const next = restoreReferences(result.text.trim(), protectedDraft)
       // setDraft is synchronous in the supported DSH version. Retire the
       // request before writing: synchronous store subscribers may reconcile.
@@ -110,7 +114,7 @@ export class EnhanceController {
       } else this.apply(next, snapshot, result)
     } catch (error) {
       if (this.disposed || this.active !== active || active.abort.signal.aborted) return
-      this.message = error instanceof Error ? error.message : '增强失败，已保留原文。'
+      this.message = error instanceof Error ? error.message : m("m005")
     } finally {
       if (this.active === active) this.active = undefined
       if (!this.disposed) this.port.changed()
@@ -120,7 +124,7 @@ export class EnhanceController {
   private apply(draft: SemanticDraft, snapshot: ComposerSnapshot, response: EnhanceResponse): void {
     this.port.write(draft)
     this.undo = { original: snapshot.draft, applied: structuredClone(this.port.read()) }
-    this.message = ['已增强，请检查后发送。', ...(response.context?.warnings ?? [])].join(' ')
+    this.message = [m("m006"), ...(response.context?.warnings ?? [])].join(' ')
   }
 
   async acceptPreview(): Promise<void> {
@@ -130,16 +134,16 @@ export class EnhanceController {
     this.port.changed()
     try {
       if (this.port.validateSelection && !await this.port.validateSelection(preview.snapshot.selection!, AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]))) {
-        throw new Error('增强模型已不可用，预览未采用。')
+        throw new Error(m("m007"))
       }
       if (this.disposed || abort.signal.aborted || this.preview !== preview) return
-      if (!sameComposer(this.port.read(), preview.snapshot)) throw new Error('草稿状态已变化，预览未采用。')
+      if (!sameComposer(this.port.read(), preview.snapshot)) throw new Error(m("m008"))
       this.preview = undefined
       this.apply(preview.draft, preview.snapshot, preview.response)
     } catch (error) {
       if (!this.disposed && !abort.signal.aborted) {
         this.preview = undefined
-        this.message = error instanceof Error ? error.message : '预览未采用。'
+        this.message = error instanceof Error ? error.message : m("m009")
       }
     } finally { if (this.applying === abort) this.applying = undefined; if (!this.disposed) this.port.changed() }
   }
@@ -155,7 +159,7 @@ export class EnhanceController {
     const original = this.undo!.original
     this.undo = undefined
     this.port.write(structuredClone(original))
-    this.message = '已恢复原文。'
+    this.message = m("m010")
     this.port.changed()
   }
 

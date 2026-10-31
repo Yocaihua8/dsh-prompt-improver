@@ -5,10 +5,26 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import assert from 'node:assert/strict'
 import { syncShared } from './sync-shared.mjs'
 
+/** Kept local so a standalone clone has the same formal-release checks. */
+export async function checkFormalReleaseVersion(root, manifest) {
+  if (typeof manifest.version === 'string' && /^\d+\.\d+\.\d+-/.test(manifest.version)) return
+  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/, 'Formal release version must use X.Y.Z without suffixes')
+  let lock
+  try { lock = JSON.parse(await readFile(join(root, 'package-lock.json'), 'utf8')) }
+  catch (error) {
+    if (error.code !== 'ENOENT') throw error
+    assert.equal(Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }).length, 0, 'Formal release with dependencies requires package-lock.json')
+    return
+  }
+  assert.equal(lock.version, manifest.version, 'Lockfile version differs from formal release')
+  assert.equal(lock.packages?.['']?.version, manifest.version, 'Root lockfile package version differs from formal release')
+}
+
 /** Check the actual tarball allowlist without overwriting any existing archive. */
 export async function checkPackage(entryUrl) {
   const root = fileURLToPath(new URL('../', entryUrl))
   const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+  await checkFormalReleaseVersion(root, manifest)
   await syncShared(root, { check: true })
   if (!process.env.npm_execpath) throw new Error('Run through npm run check:package')
   const [pack] = JSON.parse(execFileSync(process.execPath, [process.env.npm_execpath, 'pack', '--dry-run', '--ignore-scripts', '--json'], { cwd: root, encoding: 'utf8' }))
@@ -42,6 +58,6 @@ export async function checkPackage(entryUrl) {
         && (files.has(packed) || path.endsWith('.d.ts') && files.has(packed.replace(/(?<!\.d)\.[jt]s$/, '.d.ts'))), `Unpacked relative import: ${path} -> ${match[1]}`)
     }
   }
-  assert.equal(manifest.engines.dsh, '0.2.1-rc.3')
+  assert.equal(manifest.engines.dsh, '0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5')
   console.log(`${manifest.name}: package verified (${files.size} files, ${pack.unpackedSize} unpacked bytes).`)
 }

@@ -33,7 +33,7 @@ dsh-prompt-improver/
 git clone https://github.com/Yocaihua8/dsh-prompt-improver.git
 cd dsh-prompt-improver
 # 复现本次 Release 时固定标签；开发默认分支时可省略
-git checkout v0.2.6
+git checkout v0.2.12
 npm ci
 npm run check
 npm run check:package
@@ -59,6 +59,8 @@ npm pack --pack-destination $packageOutput
 ```
 
 `prepack` 会再次执行 `check` 和 `check:package`。不要覆盖已经交付或安装的同路径安装包。包检查通过不代表完成了实际桌面安装和交互验收。
+
+正式版只使用三段数字 `X.Y.Z`：修复或仅宿主兼容调整递增 `Z`，新增兼容功能递增 `Y` 并将 `Z` 归零，破坏兼容性时递增 `X` 并将其余两段归零。宿主支持范围写入 `engines.dsh`、DSH peer 和兼容记录，不使用 `+dsh.rc45.1` 等正式版后缀。`check:package` 会拒绝不符合格式的正式版，以及 `package.json.version` 与锁文件顶层、根包版本不一致的情况；包名中的版本和发布记录也须对应同一发布。已有兼容包在后续发布时递增修订号、使用新路径打包，不覆盖旧包。本次仅调整正式版规则，测试版沿用既有约定。
 
 仓库通过 `.gitattributes` 固定文本为 LF，避免 Windows 检出时的换行转换改变嵌入客户端的 CSS 字符串。构建后的 `lib` 应与提交中的产物一致；全新克隆验证会先移出已有 `lib`，检查从源码重新生成的结果。
 
@@ -107,3 +109,18 @@ Typert 由官方生成器生成 `lib/typert.*`，不要手改。构建器从本�
 - **桌面安装验收**：在真实 DSH 中检查加载、设置保留、预览、采用、恢复和相关异常，再记录版本及结果。
 
 历史质量与安装证据见[验证记录](verification.md)。README 截图说明见[截图记录](screenshots/README.md)；一次截图演示不等同于完整回归。
+## 输入预测接口（0.2.8）
+
+设置新增可选 `predictionEnabled`，缺省规范化为 `false`。新增 `promptEnhance.predict(request, signal)`，请求包含 `sessionId`、允许为空的 `draft`、`protectedTokens`、`selection` 和设置快照；响应沿用 `{ text, context?, selection? }`，`text` 是追加文本。RPC 校验会话资源、owner、已保存开关及设置一致性；拒绝 IM、子会话和带外部 principal 的历史。模型内部仅接受 `{ "suffix": "..." }`，并核验长度及引用占位符。
+
+客户端通过 `conversation.input.overlay` 挂载预测组件，以 rc.3 的 `data-composer-input`、`data-composer-card` 和 `data-trigger-menu` 绑定编辑器。显示层复制排版而不写入 Lexical 文档；正式接受使用 `inputActions.captureInsertion/insertText`。快照包含草稿版本、结构化引用、附件、模型、设置及事件窗口版本；另以内容身份去重，避免撤销后立即重复预测。
+
+项目记忆优先使用 v2 `recallForContext`（用途 enhance），仅未声明 v2 的旧服务可走 v1。非项目会话使用 v2 `recallForPersonal`；该接口仅在 Host 内可见。仓库内 `shared/context-memory-contract.ts` 与开发目录公共契约保持一致，构建自动生成消费者副本。
+
+原生浏览器验收见 `test/browser/README.md`；跨插件与可选真实模型验收入口为开发目录 `test/integration/prediction-memory.test.ts`，默认使用确定性模型适配器，只有设置 `PREDICTION_LIVE_OUTPUT` 才调用隔离的免费测试模型。
+
+## 0.2.11 locale and message compatibility
+
+The client registers a typed `dsh-prompt-improver` namespace through `ctx.locale` and subscribes only the display layer. The imperative prediction overlay repaints on locale changes without reconciling its request controller. UI locale is not part of any model request or prompt.
+
+`prompt-enhance/failed` details retain `reason` and optionally add `messageKey` and `messageParams`. `ContextReport.warningMessages` optionally accompanies the unchanged `warnings` array. Message dictionaries and parameter types live in `src/shared/messages.ts`. Known legacy messages are resolved at display time; unknown diagnostics remain verbatim under a localized summary. Source labels localize only their plugin-owned role/scope, preserving the topic, path, and source text.

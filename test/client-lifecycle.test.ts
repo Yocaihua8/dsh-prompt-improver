@@ -23,12 +23,16 @@ test('browser bundle uses host modules and disposes remote, slot and style when 
   vm.runInNewContext(await readFile(new URL('../lib/client.js', import.meta.url), 'utf8'), sandbox)
   assert.ok(client)
   const ctx = new Context()
+  ctx.provide('locale', {
+    register: () => () => {}, bind: () => (key: string) => key,
+    getSnapshot: () => ({ active: 'zh', revision: 0, locales: [] }), subscribe: () => () => {},
+  })
   for (const name of ['sessions', 'conversation', 'modelDirectories', 'uiSession']) ctx.provide(name, {})
   class SlotsFixture extends Service {
     constructor(ctx: Context) { super(ctx, 'slots') }
     inject(_name: string, callback: () => () => void) { return this.ctx.effect(callback) }
     register(options: { name: string; id: string }) {
-      assert.ok(['conversation.input.right', 'settings.section'].includes(options.name))
+      assert.ok(['conversation.input.right', 'conversation.input.overlay', 'settings.section'].includes(options.name))
       assert.equal(options.id, 'dsh-prompt-improver')
       state.slots++
       return () => { state.slots-- }
@@ -45,7 +49,7 @@ test('browser bundle uses host modules and disposes remote, slot and style when 
   } })
   const plugin = ctx.plugin(client)
   await plugin
-  assert.deepEqual(state, { remote: 1, slots: 2, styles: 1 })
+  assert.deepEqual(state, { remote: 1, slots: 3, styles: 1 })
   await plugin.dispose()
   assert.deepEqual(state, { remote: 0, slots: 0, styles: 0 })
   await slots.dispose()

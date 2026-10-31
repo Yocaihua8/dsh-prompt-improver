@@ -37,6 +37,16 @@ test('settings initialize once from legacy mode, persist restart and never retai
   assert.throws(() => validateSettings({ ...DEFAULT_SETTINGS, modelStrategy: 'dedicated' }), /无效/)
 })
 
+test('mystery injection defaults to off for existing files and round-trips', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'prompt-settings-mystery-'))
+  const file = join(root, 'settings.json')
+  await writeFile(file, JSON.stringify({ mode: 'expanded', adoption: 'direct', context: 'recent', modelStrategy: 'follow', dedicated: null }))
+  const store = new SettingsStore(file)
+  assert.equal((await store.read()).mystery, false)
+  await store.save({ ...DEFAULT_SETTINGS, mystery: true })
+  assert.equal((await new SettingsStore(file).read()).mystery, true)
+})
+
 test('draft context performs no history, memory or project reads', async () => {
   const ctx = { sessionQuery: { readSurface() { throw new Error('should not read') } } } as unknown as Pick<Context, 'sessionQuery'>
   const context = await collectContext(ctx, { ...request, settings: { ...DEFAULT_SETTINGS, context: 'draft' } }, signal(), { extended: async () => { throw new Error('should not read') } })

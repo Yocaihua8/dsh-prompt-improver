@@ -24,4 +24,11 @@ const css = [...theme.matchAll(/var \w+_css_default = ("(?:\\.|[^"\\])*");/g)].m
 if (!css.includes('--dsw-alias-bg-base')) throw new Error('DSH theme tokens missing')
 fs.writeFileSync(path.join(destination, 'theme.css'), css)
 fs.writeFileSync(path.join(destination, 'assets.json'), JSON.stringify({ version, styles: [...entries.filter(name => name.endsWith('.css')), 'theme.css'] }, null, 2))
+// Test-only export of the shipped composer, shell and keymap; production assets remain untouched.
+const conversation = fs.readFileSync(path.join(packages, 'dsh-client-ui-conversation/lib/client.js'), 'utf8')
+for (const marker of ['var SessionInputShell = class', 'function DraftEditor(', 'function registerComposerKeymap(', 'InputBar_module_css_default =']) {
+  if (!conversation.includes(marker)) throw new Error(`Recheck native composer fixture: ${marker}`)
+}
+fs.writeFileSync(path.join(destination, 'native-composer.js'), conversation.replace('return module.exports;',
+  'exports.predictionFixture = { SessionInputShell, DraftEditor, registerComposerKeymap, css: InputBar_module_css_default, style: css$1 }; return module.exports;'))
 console.log(`Extracted DSH ${version} static UI modules and theme into ${destination}`)

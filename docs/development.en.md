@@ -33,7 +33,7 @@ Run from a development directory of your choice:
 git clone https://github.com/Yocaihua8/dsh-prompt-improver.git
 cd dsh-prompt-improver
 # Pin the tag to reproduce this Release; omit for default-branch development.
-git checkout v0.2.6
+git checkout v0.2.12
 npm ci
 npm run check
 npm run check:package
@@ -59,6 +59,8 @@ npm pack --pack-destination $packageOutput
 ```
 
 `prepack` runs `check` and `check:package` again. Do not overwrite an archive at a path already delivered or installed. Passing the package check does not establish that desktop installation and interaction acceptance have passed.
+
+Formal releases use only `X.Y.Z`: increment `Z` for fixes or host compatibility changes, increment `Y` and reset `Z` for compatible features, and increment `X` and reset the other components for breaking changes. Record supported hosts in `engines.dsh`, DSH peers and compatibility records instead of adding suffixes such as `+dsh.rc45.1` to formal versions. `check:package` rejects invalid formal versions and mismatches between `package.json.version` and either the top-level or root-package lockfile version. Archive filenames and release records must identify the same release. Replace existing compatibility builds through a subsequent patch release at a new path, preserving old archives. This change applies only to formal releases; existing prerelease conventions remain in place.
 
 The repository uses `.gitattributes` to enforce LF text files, preventing Windows checkout conversion from changing CSS strings embedded in the client. Rebuilt `lib` files should match the committed artifacts. Fresh-clone validation first moves the existing `lib` out to verify regeneration from source.
 
@@ -107,3 +109,16 @@ The rc.3 structured-input adaptation for `setDraft` is centralized in the client
 - **Desktop installation acceptance:** check loading, retained settings, preview, apply, restore and relevant failure cases in real DSH, then record versions and results.
 
 Historical quality and installation evidence is in the [verification record](verification.en.md). README screenshot provenance is in the [screenshot record (Chinese)](screenshots/README.md); one screenshot demonstration is not a complete regression run.
+## Prediction interfaces (0.2.8)
+
+`predictionEnabled` is optional for compatibility and normalizes to false. The new owner/session-authorized `promptEnhance.predict(request, signal)` accepts `sessionId`, an optionally empty `draft`, protected reference tokens, model selection and a settings snapshot. It returns `{ text, context?, selection? }`; text is only the suffix. The Host checks saved settings, excludes IM/subagent/remote-principal history, and validates the model's private `{ "suffix": "..." }` response before returning it.
+
+The client mounts through `conversation.input.overlay`, using rc.3 composer data attributes for a presentation-only mirror. Acceptance uses the native `captureInsertion/insertText` API, preserving reference chips, attachments and undo. Revision guards protect pending results; semantic deduplication suppresses immediate re-prediction after undo or dismissal.
+
+Project memory uses v2 `recallForContext` with purpose `enhance`, or v1 only when v2 is undeclared. Projectless recall uses the new Host-only `recallForPersonal`. Keep the local context contract aligned with the workspace shared source and generate copies through the existing sync script. See the browser verification README and the workspace prediction integration test for validation.
+
+## 0.2.11 locale and message compatibility
+
+The client registers a typed `dsh-prompt-improver` namespace through `ctx.locale` and subscribes only the display layer. The imperative prediction overlay repaints on locale changes without reconciling its request controller. UI locale is not part of any model request or prompt.
+
+`prompt-enhance/failed` details retain `reason` and optionally add `messageKey` and `messageParams`. `ContextReport.warningMessages` optionally accompanies the unchanged `warnings` array. Message dictionaries and parameter types live in `src/shared/messages.ts`. Known legacy messages are resolved at display time; unknown diagnostics remain verbatim under a localized summary. Source labels localize only their plugin-owned role/scope, preserving the topic, path, and source text.

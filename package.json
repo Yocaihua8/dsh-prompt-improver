@@ -1,8 +1,14 @@
 {
   "name": "dsh-prompt-improver",
-  "displayName": "DSH 提示词增强",
-  "description": "按需结合对话、记忆和项目片段增强草稿，支持预览、专用模型与安全撤销。",
-  "version": "0.2.6",
+  "displayName": {
+    "zh": "DSH 提示词增强",
+    "en": "DSH Prompt Enhance"
+  },
+  "description": {
+    "zh": "按需结合对话、记忆和项目片段增强草稿，支持预览、专用模型与安全撤销。",
+    "en": "Enhance drafts with conversation, memory, and project context. Includes previews, dedicated models, safe undo, and input prediction."
+  },
+  "version": "0.2.12",
   "repository": {
     "type": "git",
     "url": "https://github.com/Yocaihua8/dsh-prompt-improver.git"
@@ -12,7 +18,7 @@
   "type": "module",
   "engines": {
     "node": ">=22.19.0",
-    "dsh": "0.2.1-rc.3"
+    "dsh": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5"
   },
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -76,21 +82,22 @@
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-ui-primitives",
-        "@deepseek-ai/dsh-client-ui-settings"
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale"
       ]
     }
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.5",
-    "@deepseek-ai/dsh-llm": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-session-query": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-session": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-session-query": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5",
     "zod": "^4.4.3",
-    "@deepseek-ai/dsh-atomic-write": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-workspace": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-subprocess": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-home-paths": "0.2.1-rc.3"
+    "@deepseek-ai/dsh-atomic-write": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-workspace": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-subprocess": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-home-paths": "0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-api-gateway": "0.2.1-rc.3",
@@ -115,7 +122,8 @@
     "tsx": "^4.20.0",
     "typescript": "^6.0.3",
     "@deepseek-ai/dsh-client-ui-settings": "0.2.1-rc.3",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@deepseek-ai/dsh-client-locale": "0.2.1-rc.3"
   },
   "dependencies": {
     "@vscode/ripgrep": "^1.17.0"

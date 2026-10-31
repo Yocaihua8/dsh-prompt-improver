@@ -6,6 +6,8 @@ export interface ComposerSnapshot {
     draft: SemanticDraft;
     attachmentIds: readonly string[];
     selection: ModelSelection | null;
+    /** Composer model; the mystery injection is gated on it, not on `selection`. */
+    current: ModelSelection | null;
     available: boolean;
 }
 export interface ControllerPort {

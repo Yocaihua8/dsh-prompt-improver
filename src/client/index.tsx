@@ -1,3 +1,4 @@
+import { sourceLabel, installLocale, t, m, localize, diagnostic, useLocale } from './i18n.js'
 import type { Context } from '@deepseek-ai/cordis'
 import { useEffect, useLayoutEffect, useMemo, useReducer, useState } from 'react'
 import { Button, Modal, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -16,9 +17,10 @@ import { EnhanceSettingsPage, SettingsClient } from './settings.js'
 import type { ControllerPort } from './controller.js'
 import { DRAFT_CHAR_LIMIT } from '../shared/types.js'
 import styles from './style.css'
+import { PredictionOverlay } from './prediction.js'
 
-const labels = { moderate: '适度增强', expanded: '充分展开' } as const
-const contextLabels = { draft: '仅草稿', recent: '最近对话', extended: '扩展上下文' } as const
+const labels = { get moderate() { return t("m011") }, get expanded() { return t("m012") } } as const
+const contextLabels = { get draft() { return t("m013") }, get recent() { return t("m014") }, get extended() { return t("m015") } } as const
 
 interface ViewBinding extends Omit<ControllerPort, 'changed' | 'nonce'> {
   subscribe(listener: () => void): () => void
@@ -43,6 +45,7 @@ function EnhanceIcon({ pending, restore }: { pending: boolean; restore: boolean 
 }
 
 function EnhanceButton({ binding, settings }: { binding: ViewBinding; settings: SettingsClient }) {
+  useLocale()
   const [, render] = useReducer((n: number) => n + 1, 0)
   const [compareOriginal, setCompareOriginal] = useState(true)
   const [previewSettings, setPreviewSettings] = useState(settings.value)
@@ -62,6 +65,9 @@ function EnhanceButton({ binding, settings }: { binding: ViewBinding; settings: 
   const mode = settings.value.mode
   const pending = controller.pending
   const canUndo = controller.canUndo
+  const enhanceSessionId = binding.read().sessionId
+  useLayoutEffect(() => { settings.setEnhancing(enhanceSessionId, pending || !!controller.preview || controller.checkingPreview) })
+  useEffect(() => () => settings.setEnhancing(enhanceSessionId, false), [settings, enhanceSessionId])
   const selection = controller.preview?.response.selection ?? controller.preview?.snapshot.selection
   const start = () => {
     if (reason) return
@@ -71,38 +77,38 @@ function EnhanceButton({ binding, settings }: { binding: ViewBinding; settings: 
   }
   return <div className="dsh-prompt-enhance" data-prompt-enhance="true">
     <Button variant="ghost" size="sm" type="button" className="dsh-prompt-enhance-trigger"
-        aria-label={pending ? '取消提示词增强' : canUndo ? '恢复原文' : '增强提示词'} aria-busy={pending}
+        aria-label={pending ? t("m016") : canUndo ? t("m017") : t("m018")} aria-busy={pending}
         aria-disabled={!pending && !canUndo && !!reason}
-        title={pending ? '增强中… 点击取消' : canUndo ? '恢复原文' : reason || `增强提示词 · ${labels[mode]}`}
+        title={pending ? t("m019") : canUndo ? t("m017") : diagnostic(reason) || t("m020", { p0: labels[mode] })}
         onClick={() => {
           setDismissed('')
           if (pending) controller.cancel()
           else if (canUndo) controller.restore()
           else start()
         }}><EnhanceIcon pending={pending} restore={canUndo} /></Button>
-    <span className="dsh-prompt-enhance-sr" role="status" aria-live="polite">{pending ? '增强中…' : controller.message}</span>
+    <span className="dsh-prompt-enhance-sr" role="status" aria-live="polite">{pending ? t("m021") : diagnostic(controller.message)}</span>
     {controller.message && dismissed !== controller.message && <Toast key={controller.message}
-      text={controller.message} holdMs={4500} onDone={() => setDismissed(controller.message)} />}
-    <Modal open={!!controller.preview} onClose={() => controller.closePreview()} title="预览增强" closeLabel="保留原稿并关闭"
+      text={diagnostic(controller.message)} holdMs={4500} onDone={() => setDismissed(controller.message)} />}
+    <Modal open={!!controller.preview} onClose={() => controller.closePreview()} title={t("m022")} closeLabel={t("m023")}
       description={`${labels[previewSettings.mode]} · ${contextLabels[previewSettings.context]}`}
       className="dsh-prompt-enhance-dialog" contentClassName="dsh-prompt-enhance-dialog-body" footer={<>
-        <Button variant="ghost" onClick={() => controller.closePreview()}>保留原稿</Button>
-        <Button variant="primary" disabled={controller.checkingPreview} onClick={() => { setDismissed(''); void controller.acceptPreview() }}>{controller.checkingPreview ? '正在核对…' : '替换草稿'}</Button>
+        <Button variant="ghost" onClick={() => controller.closePreview()}>{t("m024")}</Button>
+        <Button variant="primary" disabled={controller.checkingPreview} onClick={() => { setDismissed(''); void controller.acceptPreview() }}>{controller.checkingPreview ? t("m025") : t("m026")}</Button>
       </>}>
       {controller.preview && <>
         <div className="dsh-prompt-enhance-preview-toolbar">
-          <p className="dsh-prompt-enhance-meta">{selection?.model}{selection?.reasoningEffort && ` · ${selection.reasoningEffort}`} · {previewSettings.modelStrategy === 'follow' ? '跟随当前模型' : '专用模型'}
-            {controller.preview.snapshot.attachmentIds.length > 0 && ` · 附件保留 ${controller.preview.snapshot.attachmentIds.length} 个`}</p>
-          <label className="dsh-prompt-enhance-compare-toggle"><input type="checkbox" checked={compareOriginal} onChange={event => setCompareOriginal(event.target.checked)} />对照原文</label>
+          <p className="dsh-prompt-enhance-meta">{selection?.model}{selection?.reasoningEffort && ` · ${selection.reasoningEffort}`} · {previewSettings.modelStrategy === 'follow' ? t("m027") : t("m028")}
+            {controller.preview.snapshot.attachmentIds.length > 0 && t("m029", { p0: controller.preview.snapshot.attachmentIds.length })}</p>
+          <label className="dsh-prompt-enhance-compare-toggle"><input type="checkbox" checked={compareOriginal} onChange={event => setCompareOriginal(event.target.checked)} />{t("m030")}</label>
         </div>
         <div className={`dsh-prompt-enhance-comparison${compareOriginal ? '' : ' dsh-prompt-enhance-comparison-solo'}`}>
-          {compareOriginal && <section className="dsh-prompt-enhance-original"><h3>原文</h3><pre className="dsh-prompt-enhance-text">{controller.preview.snapshot.draft.text}</pre></section>}
-          <section><h3>增强稿</h3><pre className="dsh-prompt-enhance-text">{controller.preview.draft.text}</pre></section>
+          {compareOriginal && <section className="dsh-prompt-enhance-original"><h3>{t("m031")}</h3><pre className="dsh-prompt-enhance-text">{controller.preview.snapshot.draft.text}</pre></section>}
+          <section><h3>{t("m032")}</h3><pre className="dsh-prompt-enhance-text">{controller.preview.draft.text}</pre></section>
         </div>
-        {controller.preview.response.context?.warnings.map(warning => <p className="dsh-prompt-enhance-warning" key={warning} role="status">{warning}</p>)}
-        <details className="dsh-prompt-enhance-sources"><summary>实际参考来源（{controller.preview.response.context?.sources.length ?? 0}） · 查看详情</summary>
-          {controller.preview.response.context?.sources.map((source, index) => <section className="dsh-prompt-enhance-source" key={index}><h4>{source.label}</h4><pre className="dsh-prompt-enhance-text">{source.text}</pre></section>)}
-          {!controller.preview.response.context?.sources.length && <p>本次未采用补充上下文。</p>}
+        {controller.preview.response.context?.warnings.map((warning, index) => <p className="dsh-prompt-enhance-warning" key={warning} role="status">{localize(warning, controller.preview!.response.context?.warningMessages?.[index] ?? undefined)}</p>)}
+        <details className="dsh-prompt-enhance-sources"><summary>{t("m033")}{controller.preview.response.context?.sources.length ?? 0}{t("m034")}</summary>
+          {controller.preview.response.context?.sources.map((source, index) => <section className="dsh-prompt-enhance-source" key={index}><h4>{sourceLabel(source)}</h4><pre className="dsh-prompt-enhance-text">{source.text}</pre></section>)}
+          {!controller.preview.response.context?.sources.length && <p>{t("m035")}</p>}
         </details>
       </>}
     </Modal>
@@ -120,17 +126,17 @@ function createBinding(ctx: Context, sessionId: SessionId, settings: SettingsCli
     const state = input.state.getSnapshot()
     const models = directory.store.getSnapshot()
     const snapshot = session.session.getSnapshot()
-    if (ctx.sessions.binding(sessionId) !== session || snapshot.removed || snapshot.openState !== 'open') return '会话尚未就绪'
-    if (snapshot.subagent !== null) return '请在主会话中增强提示词'
-    if (state.claim || state.phase === 'claimed' || /^\s*\/\S/u.test(state.draft)) return '命令草稿不参与提示词增强'
-    if (state.phase !== 'plain' || blocks.getSnapshot() || ctx.uiSession.sessionStatus.getSnapshot().get(sessionId)?.pendingInteraction) return '当前输入框不可编辑'
-    if (!state.draft.trim()) return '先输入需要增强的提示词'
-    if (state.draft.length > DRAFT_CHAR_LIMIT) return `草稿不能超过 ${DRAFT_CHAR_LIMIT.toLocaleString()} 字符`
-    if (!settings.ready) return settings.error || '正在读取提示词增强设置'
+    if (ctx.sessions.binding(sessionId) !== session || snapshot.removed || snapshot.openState !== 'open') return t("m036")
+    if (snapshot.subagent !== null) return t("m037")
+    if (state.claim || state.phase === 'claimed' || /^\s*\/\S/u.test(state.draft)) return t("m038")
+    if (state.phase !== 'plain' || blocks.getSnapshot() || ctx.uiSession.sessionStatus.getSnapshot().get(sessionId)?.pendingInteraction) return t("m039")
+    if (!state.draft.trim()) return t("m040")
+    if (state.draft.length > DRAFT_CHAR_LIMIT) return t("m041", { p0: DRAFT_CHAR_LIMIT.toLocaleString() })
+    if (!settings.ready) return settings.error || m("m042")
     if (settings.value.modelStrategy === 'dedicated') {
       const selected = settings.value.dedicated
-      if (!selected || !settings.capabilities.models.some(model => model.provider === selected.provider && model.model === selected.model && (!selected.reasoningEffort || model.efforts.includes(selected.reasoningEffort)))) return '专用增强模型或推理档位不可用，请前往 DSH 设置 → 提示词增强'
-    } else if (models.status !== 'ready' || !models.routable || !models.current) return '请先选择可用模型'
+      if (!selected || !settings.capabilities.models.some(model => model.provider === selected.provider && model.model === selected.model && (!selected.reasoningEffort || model.efforts.includes(selected.reasoningEffort)))) return t("m043")
+    } else if (models.status !== 'ready' || !models.routable || !models.current) return t("m044")
     return ''
   }
 
@@ -138,10 +144,12 @@ function createBinding(ctx: Context, sessionId: SessionId, settings: SettingsCli
     reason,
     read: () => {
       const state = input.state.getSnapshot()
+      const current = directory.store.getSnapshot().current
       return {
         sessionId, revision: state.draftRev,
         draft: { text: state.draft, references: state.occurrences.map(({ occurrenceId: _id, ...reference }) => ({ ...reference })) },
-        attachmentIds: [...state.attachmentIds], selection: settings.value.modelStrategy === 'dedicated' ? settings.value.dedicated : directory.store.getSnapshot().current,
+        attachmentIds: [...state.attachmentIds], selection: settings.value.modelStrategy === 'dedicated' ? settings.value.dedicated : current,
+        current: current ?? null,
         available: reason() === '',
       }
     },
@@ -174,12 +182,13 @@ function createBinding(ctx: Context, sessionId: SessionId, settings: SettingsCli
   }
 }
 
-export const inject = ['remote', 'slots', 'sessions', 'conversation', 'modelDirectories', 'uiSession']
+export const inject = ['locale', 'remote', 'slots', 'sessions', 'conversation', 'modelDirectories', 'uiSession']
 
 /** Mount the generated Remote contribution and the native composer slot together. */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const unmountRemote = await ctx.remote.$mount(TYPERT_REMOTE)
-  const ui = ctx.inject(['remote.promptEnhance', 'remote.session', 'slots', 'sessions', 'conversation', 'modelDirectories', 'uiSession'], scope => {
+  const ui = ctx.inject(['locale', 'remote.promptEnhance', 'remote.session', 'slots', 'sessions', 'conversation', 'modelDirectories', 'uiSession'], scope => {
+    installLocale(scope)
     const settings = new SettingsClient(scope)
     scope.effect(() => () => settings.dispose())
     const style = document.createElement('style')
@@ -192,9 +201,13 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       inject: sessionId => ({ binding: createBinding(scope, sessionId, settings), settings }),
     }, EnhanceButton))
     scope.slots.inject('settings.section', () => scope.slots.register({
-      name: 'settings.section', id: 'dsh-prompt-improver', order: 45, label: () => '提示词增强',
+      name: 'settings.section', id: 'dsh-prompt-improver', order: 45, label: () => t("m045"),
       inject: () => ({ settings }),
     }, EnhanceSettingsPage))
+    scope.slots.inject('conversation.input.overlay', () => scope.slots.register({
+      name: 'conversation.input.overlay', id: 'dsh-prompt-improver', order: 100,
+      inject: sessionId => ({ ctx: scope, sessionId, settings }),
+    }, PredictionOverlay))
   })
   try { await ui }
   catch (error) { await ui.dispose(); await unmountRemote(); throw error }

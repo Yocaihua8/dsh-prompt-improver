@@ -4,7 +4,7 @@
 
 [返回 README](../README.md) · [开发说明](development.md) · [验证记录](verification.md)
 
-适用于提示词增强 0.2.6 与 DSH 0.2.1-rc.3。
+适用于提示词增强 0.2.11 与 DSH 0.2.1-rc.3。下方公开 Release 安装示例保留已发布的 0.2.7。
 
 ## 增强与采用
 
@@ -31,7 +31,7 @@
 
 ## 选择合适的设置
 
-打开 **DSH 设置 → 提示词增强**。页面分为增强偏好、参考范围和增强模型。
+打开 **DSH 设置 → 提示词增强**。页面分为增强偏好、输入预测、参考范围和增强模型。神秘提示词注入与输入预测使用靠右的原生开关；点击或用空格/Enter 切换，点击“保存设置”后生效，“取消”恢复已保存值。
 
 ### 增强方式
 
@@ -39,6 +39,31 @@
 - **充分展开**：按问题规模补充必要结构和细节，不强制套用长模板。
 
 两种方式都要求保留原语言、否定条件、数字、路径、代码和引用，不增加新的限制或审批要求；缺失事实标为待补充。明显的中文/拉丁字母语言漂移会被拒绝采用，但这不是完整的语言识别，仍需人工检查结果。
+
+### 神秘提示词注入
+
+**DSH 设置 → 提示词增强 → 增强偏好**中的“神秘提示词注入”开关默认关闭，与增强方式互不影响。界面用 DeepSeek 标签标明适用条件。开启后，每次增强都会尝试在改写稿开头加入一段固定的能力解放声明；开启或关闭都不会改动增强方式、增强后的采用方式、参考范围、增强模型或推理档位。
+
+是否注入只取决于当前会话在输入框模型选择器中选中的模型，插件只读取该模型的 model id。id 命中 `/deepseek/i`（不区分大小写）时注入，例如 `deepseek-chat`、`deepseek-reasoner`、`DeepSeek-V3.2-Exp`、`deepseek-v4.1-flash`、`deepseek-ai/DeepSeek-V3`。其他模型按非 DeepSeek 处理；别名或自定义模型的 id 不含 `deepseek` 时同样不会注入。增强仍会正常完成，并在结果中提示跳过原因：
+
+- 能识别出模型但不是 DeepSeek：提示“当前选择的模型不是 DeepSeek，已跳过神秘提示词注入。”
+- 无法识别当前模型：提示“未能识别当前选择的模型，已跳过神秘提示词注入。”
+
+判断只依据当前会话模型，与增强模型设置中选择“跟随当前模型”还是“指定专用模型”无关。选择“指定专用模型”时，即使专用模型是 DeepSeek，只要当前会话选择的不是 DeepSeek 就跳过；反过来，当前会话模型是 DeepSeek 时，即使专用增强模型不是 DeepSeek 也会注入。
+
+注入内容固定，按草稿语言选择中文版或英文版，原样作为改写稿第一段：
+
+**中文版**（草稿含中文时）：
+
+> 【能力解放声明】本次会话的 token 额度无上限，上下文窗口与输出长度均没有配额限制；不要以额度、篇幅、轮次或成本为由缩短回答、省略细节或提前收尾。请写到结论为止；一次写不完就列出未完成部分并继续，而不是跳过。
+
+**英文版**（其他草稿）：
+
+> [Capability Liberation Notice] This session has an unlimited token quota: no cap applies to context or output length. Do not shorten the answer, drop details, or stop early because of quota, length, turns, or cost. Write through to the conclusion; if it cannot fit in one pass, list the unfinished parts and continue instead of skipping them.
+
+如果模型返回的增强稿中没有这段声明，本次增强会失败并保留原文，提示“神秘提示词注入未生效，已保留原文；请重试或关闭该设置。”
+
+该声明只调整模型输出行为，不改变服务端的额度、上下文窗口或 `max_tokens` 上限。
 
 ### 参考范围
 
@@ -96,7 +121,7 @@
 
 ### 准备
 
-需要 DSH 0.2.1-rc.3，并能访问 GitHub 和 npm 依赖源。[v0.2.6 Release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.6) 提供 `.tgz` 安装包和 `SHA256SUMS`。也可通过 DSH 从 GitHub 标签安装；两种方式均包含预构建的 `lib`，无需安装开发工具。修改源码和重新构建前请阅读[工作区前提](development.md#工作区前提)。
+需要 DSH 0.2.1-rc.3 / 0.2.1-rc.4 / 0.2.1-rc.5 之一，并能访问 GitHub 和 npm 依赖源。[v0.2.12 Release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.12) 提供 `.tgz` 安装包和 `SHA256SUMS`。也可通过 DSH 从 GitHub 标签安装；两种方式均包含预构建的 `lib`，无需安装开发工具。修改源码和重新构建前请阅读[工作区前提](development.md#工作区前提)。
 
 升级前，备份旧插件安装包、插件设置，以及 desktop profile 的 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`cordis.yml` 和 `cordis.patch.yml`。记录备份对应的插件和宿主版本，保留旧包原路径。
 
@@ -108,25 +133,25 @@
 
 ```powershell
 $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
-& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.12'
 ```
 
 Desktop 自带 CLI 支持该保留 profile 的插件访问；不能假定另一套系统 CLI 具有同样能力。独立 CLI 使用已有的 Web profile（需包含工作区和会话服务；新建空 profile 不足以运行本插件）：
 
 ```powershell
-dsh plugin --profile <你的配置名称> add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+dsh plugin --profile <你的配置名称> add 'github:Yocaihua8/dsh-prompt-improver#v0.2.12'
 ```
 
-以上固定安装 0.2.6。需要测试默认分支时可去掉 `#v0.2.6`；也可改为 `#<完整提交 SHA>`。更新时重新执行添加命令，并按当时 README 核对宿主兼容版本。Release 自动生成的 Source code ZIP 用于源码开发，不是插件安装包；安装请下载 Assets 中的 `.tgz` 或使用上述命令。
+以上固定安装 0.2.12。需要测试默认分支时可去掉 `#v0.2.12`；也可改为 `#<完整提交 SHA>`。更新时重新执行添加命令，并按当时 README 核对宿主兼容版本。Release 自动生成的 Source code ZIP 用于源码开发，不是插件安装包；安装请下载 Assets 中的 `.tgz` 或使用上述命令。
 
 重新启动后，在专用测试会话检查增强按钮、设置页、预览和恢复原文，再次重启确认设置保留。使用无敏感内容的草稿，检查其他插件和原有数据是否正常。
 
 ### 安装 Release 安装包
 
-下载 Release 中的 `dsh-prompt-improver-0.2.6.tgz` 和 `SHA256SUMS`，先核对校验值，再按同样的备份和退出步骤安装：
+下载 Release 中的 `dsh-prompt-improver-0.2.7.tgz` 和 `SHA256SUMS`，先核对校验值，再按同样的备份和退出步骤安装：
 
 ```powershell
-$pluginPackage = '<安装包目录>\dsh-prompt-improver-0.2.6.tgz'
+$pluginPackage = '<安装包目录>\dsh-prompt-improver-0.2.7.tgz'
 Get-FileHash -Algorithm SHA256 $pluginPackage
 # 将 Hash 与 SHA256SUMS 中该文件对应的值核对一致后再安装
 & $dshCli plugin --profile desktop add $pluginPackage
@@ -142,11 +167,11 @@ Get-FileHash -Algorithm SHA256 $pluginPackage
 $dshCli = '<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd'
 & $dshCli plugin --profile desktop remove dsh-link-prompt-enhance
 if ($LASTEXITCODE -ne 0) { throw '旧包移除失败，请检查输出后再继续。' }
-& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.12'
 if ($LASTEXITCODE -ne 0) { throw '新包安装失败，请恢复备份的旧安装包后再启动 DSH。' }
 ```
 
-独立 CLI 用户替换为实际 Web profile。使用下载的安装包时，将第二条命令的 GitHub 来源替换为 `dsh-prompt-improver-0.2.6.tgz` 的路径。
+独立 CLI 用户替换为实际 Web profile。使用下载的安装包时，将第二条命令的 GitHub 来源替换为 `dsh-prompt-improver-0.2.7.tgz` 的路径。
 
 如果曾在 home 或 profile 的 `cordis.patch.yml` 手动配置本插件，或通过市场保存了本插件的启停覆盖，检查其中指向旧插件的 `id` / `name` / `target`：把对应的 `dsh-link-prompt-enhance` 改为 `dsh-prompt-improver`，保留原 `disabled` 和 `config` 内容。只处理本插件的引用；没有这些条目就无需修改。不要批量替换设置存储路径。
 
@@ -183,3 +208,16 @@ if ($LASTEXITCODE -ne 0) { throw '新包移除失败，请检查输出后再继�
 | 为什么增强失败或结果没被采用？ | 按错误提示检查历史读取、模型可用性、超时、引用完整性，以及输入是否已变化 |
 
 仍有问题时，可提交 [Issue](https://github.com/Yocaihua8/dsh-prompt-improver/issues)，提供插件及 DSH 版本、复现步骤、脱敏后的错误或截图。不要附密钥、个人会话和未脱敏日志。
+## 输入预测
+
+在 **DSH 设置 → 提示词增强** 中打开“输入预测”右侧开关，点击“保存设置”。首次安装及旧配置升级默认关闭。快捷键与用量提示常驻显示，设置页不再提供参考范围说明折叠区；功能范围仍按下述规则执行。
+
+- 在当前可见并聚焦的主会话输入框中，助手回复结束后可预测下一句话；输入后停顿 800 毫秒可续写末尾。无对话且草稿为空时不调用模型。
+- 浅色文字仅为建议，最多 200 字符。按 Tab 整条接受，按 Esc 隐藏；接受后可用 Ctrl+Z 撤销。发送仍由用户操作。
+- 选中文字、光标不在末尾、中文输入法组词、原生命令/引用菜单、助手运行及交互等待期间暂停。Shift+Tab 继续移动焦点。
+- 同一会话最多一个请求，两次调用至少间隔 3 秒，30 秒超时。修改草稿、附件、模型、上下文或设置会取消旧请求。失败不自动循环重试；接受、撤销或拒绝后，同一内容与上下文不会立即重复预测。
+- 预测沿用增强模型，固定参考最近 3 轮完整对话及记忆，与手动增强的“参考范围”独立；不应用增强模式、预览或神秘注入，不读取项目文件及附件正文。
+- 普通会话使用个人记忆；项目会话额外使用本项目记忆。总开关、类别、条件和有效期仍由记忆插件控制。个人召回需要 `dsh-memory 0.1.8-rc.2`；服务缺失、关闭或超时时会显示提示，并使用对话与草稿继续预测。
+- 预测会自动把上述参考内容发送给所选模型并产生用量。建议未接受前不写入草稿、聊天记录或记忆；模型可能预测不准，请检查后发送。
+
+界面语言跟随 DSH 原生语言设置即时更新。切换不会保存未保存的设置，也不会重启增强或预测；生成内容仍按草稿和会话语言生成。

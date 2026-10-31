@@ -4,7 +4,7 @@
 
 [Back to README](../README.en.md) · [Development guide](development.en.md) · [Verification record](verification.en.md)
 
-Applies to Prompt Improver 0.2.6 and DSH 0.2.1-rc.3.
+Applies to Prompt Improver 0.2.11 and DSH 0.2.1-rc.3. Public Release installation examples below retain the published 0.2.7 version.
 
 ## Improve and apply a draft
 
@@ -31,7 +31,7 @@ Empty drafts, command drafts, subagent sessions and non-editable input boxes are
 
 ## Choose your settings
 
-Open **DSH Settings → Prompt enhancement** (提示词增强). The page groups enhancement preferences, context scope and the enhancement model.
+Open **DSH Settings → Prompt enhancement** (提示词增强). The page groups enhancement preferences, input prediction, context scope and the enhancement model. Mystery injection and prediction use right-aligned native switches, operable by click, Space or Enter. Save applies changes; Cancel restores the saved values.
 
 ### Enhancement mode
 
@@ -39,6 +39,31 @@ Open **DSH Settings → Prompt enhancement** (提示词增强). The page groups 
 - **Expanded** (充分展开): add the structure and detail appropriate to the task, without forcing every draft into a long template.
 
 Both modes instruct the model to preserve the original language, negative constraints, numbers, paths, code and references, without introducing new restrictions or approval requirements. Missing facts are marked as needing clarification. Obvious drift between Chinese and Latin-script text is rejected, but this is not full language detection; review the result yourself.
+
+### Mystery prompt injection
+
+The **Mystery prompt injection** switch under **DSH Settings → Prompt enhancement → Enhancement preferences** is off by default and independent of the enhancement mode. A DeepSeek label identifies its applicability. When enabled, each enhancement tries to prepend a fixed capability declaration to the improved draft. Turning it on or off does not change the enhancement mode, apply mode, context scope, enhancement model or reasoning effort.
+
+Injection depends only on the model selected in the input box's model selector for the current conversation, and the plugin reads only that model's id. The id is tested against `/deepseek/i` (case-insensitive), for example `deepseek-chat`, `deepseek-reasoner`, `DeepSeek-V3.2-Exp`, `deepseek-v4.1-flash` or `deepseek-ai/DeepSeek-V3`. Other models are treated as non-DeepSeek, as are aliases and custom models whose id does not contain `deepseek`. Enhancement still completes normally, and the result reports why injection was skipped:
+
+- The model is identified but is not DeepSeek: the result reports that the selected model is not DeepSeek and that injection was skipped.
+- The current model cannot be identified: the result reports that the model could not be identified and that injection was skipped.
+
+The decision depends only on the current conversation model, not on the enhancement model setting. With a dedicated model selected, injection is skipped when the current conversation model is not DeepSeek even if the dedicated model is DeepSeek. Conversely, when the current conversation model is DeepSeek, injection still happens even if the dedicated enhancement model is not.
+
+The injected text is fixed, chosen by the draft language, and inserted verbatim as the first paragraph of the improved draft:
+
+**Chinese version** (draft contains Chinese):
+
+> 【能力解放声明】本次会话的 token 额度无上限，上下文窗口与输出长度均没有配额限制；不要以额度、篇幅、轮次或成本为由缩短回答、省略细节或提前收尾。请写到结论为止；一次写不完就列出未完成部分并继续，而不是跳过。
+
+**English version** (other drafts):
+
+> [Capability Liberation Notice] This session has an unlimited token quota: no cap applies to context or output length. Do not shorten the answer, drop details, or stop early because of quota, length, turns, or cost. Write through to the conclusion; if it cannot fit in one pass, list the unfinished parts and continue instead of skipping them.
+
+If the returned draft does not contain this declaration, the enhancement fails and keeps the original draft, reporting that mystery prompt injection did not take effect and that you can retry or turn the setting off.
+
+The declaration only adjusts model output behavior. It does not change the server-side quota, context window or `max_tokens` limit.
 
 ### Context scope
 
@@ -96,7 +121,7 @@ Each enhancement makes one auxiliary call without tools. It does not enter an ag
 
 ### Preparation
 
-You need DSH 0.2.1-rc.3 and access to GitHub and your npm dependency registry. The [v0.2.6 release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.6) provides a `.tgz` installation package and `SHA256SUMS`. You can also install from a GitHub tag through DSH. Both include prebuilt `lib` files and require no development tools. Read the [workspace prerequisites](development.en.md#workspace-prerequisites) before editing or rebuilding the source.
+You need DSH 0.2.1-rc.3, 0.2.1-rc.4, or 0.2.1-rc.5 and access to GitHub and your npm dependency registry. The [v0.2.12 release](https://github.com/Yocaihua8/dsh-prompt-improver/releases/tag/v0.2.12) provides a `.tgz` installation package and `SHA256SUMS`. You can also install from a GitHub tag through DSH. Both include prebuilt `lib` files and require no development tools. Read the [workspace prerequisites](development.en.md#workspace-prerequisites) before editing or rebuilding the source.
 
 Before upgrading, back up the old installation package, plugin settings, and the desktop profile's `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `cordis.yml` and `cordis.patch.yml`. Record the corresponding plugin and host versions, and keep the old package at its original path.
 
@@ -108,25 +133,25 @@ Wait for current tasks to finish, quit DSH normally, and confirm its processes h
 
 ```powershell
 $dshCli = '<DSH installation directory>\resources\runtime\cli\bin\dsh.cmd'
-& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.12'
 ```
 
 The bundled Desktop CLI supports plugin access to this reserved profile; another system CLI may not. Standalone CLI users should select an existing Web profile containing workspace and session services. A new empty profile is insufficient:
 
 ```powershell
-dsh plugin --profile <your-profile-name> add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+dsh plugin --profile <your-profile-name> add 'github:Yocaihua8/dsh-prompt-improver#v0.2.12'
 ```
 
-These commands pin version 0.2.6. Omit `#v0.2.6` to test the default branch, or use `#<full-commit-SHA>`. To update, repeat the add command after checking host compatibility in the current README. The automatically generated Release “Source code” ZIP is for source development, not plugin installation; use the `.tgz` under Assets or the commands above.
+These commands pin version 0.2.12. Omit `#v0.2.12` to test the default branch, or use `#<full-commit-SHA>`. To update, repeat the add command after checking host compatibility in the current README. The automatically generated Release “Source code” ZIP is for source development, not plugin installation; use the `.tgz` under Assets or the commands above.
 
 After restarting, use a dedicated test session to check the button, settings page, preview and restore action. Restart again to confirm settings persist. Use a non-sensitive draft, and check that other plugins and existing data remain intact.
 
 ### Install a release archive
 
-Download `dsh-prompt-improver-0.2.6.tgz` and `SHA256SUMS`. Verify the checksum, then install after the same backup and shutdown steps:
+Download `dsh-prompt-improver-0.2.7.tgz` and `SHA256SUMS`. Verify the checksum, then install after the same backup and shutdown steps:
 
 ```powershell
-$pluginPackage = '<package directory>\dsh-prompt-improver-0.2.6.tgz'
+$pluginPackage = '<package directory>\dsh-prompt-improver-0.2.7.tgz'
 Get-FileHash -Algorithm SHA256 $pluginPackage
 # Confirm that Hash matches this file's entry in SHA256SUMS before installing.
 & $dshCli plugin --profile desktop add $pluginPackage
@@ -142,11 +167,11 @@ Version 0.2.5 and earlier use `dsh-link-prompt-enhance`; 0.2.6 and later use `ds
 $dshCli = '<DSH installation directory>\resources\runtime\cli\bin\dsh.cmd'
 & $dshCli plugin --profile desktop remove dsh-link-prompt-enhance
 if ($LASTEXITCODE -ne 0) { throw 'Failed to remove the old package. Check the output before continuing.' }
-& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.6'
+& $dshCli plugin --profile desktop add 'github:Yocaihua8/dsh-prompt-improver#v0.2.12'
 if ($LASTEXITCODE -ne 0) { throw 'Installation failed. Restore the previous package before starting DSH.' }
 ```
 
-Standalone CLI users should use their actual Web profile. For a downloaded archive, replace the GitHub source in the second CLI command with the path to `dsh-prompt-improver-0.2.6.tgz`.
+Standalone CLI users should use their actual Web profile. For a downloaded archive, replace the GitHub source in the second CLI command with the path to `dsh-prompt-improver-0.2.7.tgz`.
 
 If you manually configured this plugin in a home or profile `cordis.patch.yml`, or used the market to save enable/disable overrides, inspect `id`, `name` and `target` references to the old plugin. Change the relevant `dsh-link-prompt-enhance` references to `dsh-prompt-improver`, preserving `disabled` and `config` values. Only edit references to this plugin; if no such entries exist, no edit is needed. Do not apply a blanket replacement to settings storage paths.
 
@@ -183,3 +208,16 @@ Do not restore the entire DSH_HOME or overwrite new sessions, attachments, memor
 | Why did enhancement fail or refuse to apply? | Follow the error message: check history access, model availability, timeout, reference integrity and whether the input changed |
 
 If the problem remains, [open an issue](https://github.com/Yocaihua8/dsh-prompt-improver/issues) with plugin and DSH versions, reproduction steps, and redacted errors or screenshots. Do not include keys, personal conversations or unredacted logs.
+## Input prediction
+
+Enable the right-hand **Input prediction** switch in **DSH Settings → Prompt Enhancement**, then save. It defaults to off, including when upgrading existing settings. Shortcut and usage hints stay visible; the settings page no longer contains a reference-scope disclosure. The scope rules below still apply.
+
+The visible, focused main-session composer predicts a next message after a completed response, or a suffix after an 800 ms typing pause. A blank new conversation makes no model call. Suggestions contain at most 200 characters. **Tab** accepts, **Esc** dismisses, and native undo reverses acceptance; sending remains manual. Shift+Tab keeps its navigation behavior.
+
+Prediction pauses during composition, selection, a nonterminal caret, native menus, running assistant turns, and pending interactions. Each session has one request at a time, a 3-second minimum interval and a 30-second deadline. Draft, attachment, model, context and setting changes invalidate old results. Failed or dismissed requests do not repeat for the same content and context.
+
+The enhancement model is reused, but prediction always uses the latest three completed turns plus available memory, independently of manual enhancement's context, mode, preview and mystery options. It reads no project files or attachment bodies. Ordinary sessions use personal memory; project sessions may additionally use that project's memory. Projectless recall requires `dsh-memory 0.1.8-rc.2`; disabled/unavailable memory is reported without blocking conversation-only prediction. Existing memory categories, conditions and expiration still apply.
+
+Enabling prediction sends this context to the selected model and incurs usage. Ghost text is excluded from the actual draft, clipboard and submitted message until accepted, and prediction never writes memory. Review suggestions before sending.
+
+The interface follows DSH’s native language preference immediately. Switching language does not save unsaved settings or restart enhancement or prediction. Generated content still follows the draft and conversation language.

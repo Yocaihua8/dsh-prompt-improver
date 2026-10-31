@@ -1,3 +1,4 @@
+import { localeFixture } from './locale-fixture.js'
 // Actual built plugin + shipped DSH React/primitives. Only Host services are fixtures.
 import { createHostModules } from './host/modules.js'
 import { runChecks } from './single-button.js'
@@ -22,7 +23,7 @@ function store(value) {
     set: next => { value = next; for (const listener of listeners) listener() } }
 }
 const initial = '帮我检查登录页面的交互，先列出问题，不要直接改代码。'
-const defaults = { mode: 'moderate', adoption: 'direct', context: 'recent', modelStrategy: 'follow', dedicated: null }
+const defaults = { mode: 'moderate', adoption: 'direct', context: 'recent', modelStrategy: 'follow', dedicated: null, mystery: false, predictionEnabled: false }
 const models = [{ provider: 'fixture', model: 'fixture-model', label: '测试模型（固定响应）', efforts: ['low', 'high'] }]
 let saved = clone(defaults), modelsAvailable = true, failSave = false, autoComplete = true
 let settingsOpen = false, sessionId = 'ui-test-1', generation = 0, running = false, results = []
@@ -41,6 +42,7 @@ const complete = (index = requests.length - 1, error) => {
     context: { sources: [{ kind: 'conversation', label: '最近对话 · 测试来源', text: '用户：只检查登录页。\n助手：先报告问题，不修改代码。' }], warnings: ['记忆服务不可用（测试提示）。'] } } })
 }
 const ctx = new Context()
+const locale = localeFixture(ctx)
 const session = { ctx: new Context(), session: sessionState }
 ctx.provide('sessions', { binding: id => id === sessionId ? session : undefined })
 ctx.provide('conversation', { input: { for: () => ({ state: inputState, setDraft: draft => {
@@ -95,6 +97,7 @@ function render() {
 }
 function edit(text) { const state = inputState.getSnapshot(); inputState.set({ ...state, draft: text, draftRev: state.draftRev + 1, occurrences: [] }) }
 const harness = {
+  setLocale: locale.setLocale,
   initial, settings, requests, writes, inputState, modelState, complete, edit,
   setAuto: value => { autoComplete = value },
   setModels: value => { modelsAvailable = value },
@@ -110,3 +113,5 @@ inputState.subscribe(render)
 document.body.setAttribute('data-ds-dark-theme', '')
 document.documentElement.style.colorScheme = 'dark'
 render()
+
+window.harness = harness

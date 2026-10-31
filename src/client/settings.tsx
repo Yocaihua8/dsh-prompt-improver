@@ -1,11 +1,18 @@
+import { t, m, diagnostic, useLocale } from './i18n.js'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { SelectHTMLAttributes } from 'react'
-import { Button, IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconChevronDownOutlineRegular, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Capabilities, EnhanceSettings } from '../shared/types.js'
 import { DEFAULT_SETTINGS, sameSelection } from '../shared/types.js'
 
 export class SettingsClient {
+  readonly enhancing = new Set<string>()
+  setEnhancing(sessionId: string, busy: boolean): void {
+    if (this.enhancing.has(sessionId) === busy) return
+    if (busy) this.enhancing.add(sessionId); else this.enhancing.delete(sessionId)
+    this.notify()
+  }
   value: EnhanceSettings = structuredClone(DEFAULT_SETTINGS)
   capabilities: Capabilities = { owner: false, memory: false, models: [] }
   ready = false
@@ -36,7 +43,7 @@ export class SettingsClient {
         this.value = result.value
       }
       this.ready = true
-    } catch (error) { this.error = error instanceof Error ? error.message : '读取设置失败。' }
+    } catch (error) { this.error = error instanceof Error ? error.message : m("m050") }
     if (!this.abort.signal.aborted) this.notify()
   }
   async save(value: EnhanceSettings): Promise<void> {
@@ -49,7 +56,7 @@ export class SettingsClient {
 
 function sameSettings(a: EnhanceSettings, b: EnhanceSettings): boolean {
   return a.mode === b.mode && a.adoption === b.adoption && a.context === b.context &&
-    a.modelStrategy === b.modelStrategy && sameSelection(a.dedicated, b.dedicated)
+    a.modelStrategy === b.modelStrategy && a.mystery === b.mystery && a.predictionEnabled === b.predictionEnabled && sameSelection(a.dedicated, b.dedicated)
 }
 
 function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
@@ -57,12 +64,13 @@ function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
 }
 
 const contextHelp = {
-  draft: '只发送当前草稿，不读取对话、记忆或项目文件。',
-  recent: '参考最近 3 轮已完成对话，随草稿发送给增强模型。',
-  extended: '参考对话、个人及同项目记忆、当前项目片段，并发送给增强模型。不会写入记忆。',
+  get draft() { return t("m051") },
+  get recent() { return t("m052") },
+  get extended() { return t("m053") },
 } as const
 
 export function EnhanceSettingsPage({ settings }: { settings: SettingsClient }) {
+  useLocale()
   const id = useId()
   const [draft, setDraft] = useState<EnhanceSettings>(() => structuredClone(settings.value))
   const baseline = useRef(settings.value)
@@ -89,61 +97,85 @@ export function EnhanceSettingsPage({ settings }: { settings: SettingsClient }) 
   const invalidModel = draft.modelStrategy === 'dedicated' && !selected
   const invalidEffort = draft.modelStrategy === 'dedicated' && !!draft.dedicated?.reasoningEffort && !selected?.efforts.includes(draft.dedicated.reasoningEffort)
   const dirty = !sameSettings(draft, settings.value)
-  const status = busy === 'save' ? '正在保存…' : busy === 'refresh' ? '正在刷新…' : !settings.ready ? '尚未读取设置' : dirty ? '有未保存的修改' : '设置已保存'
+  const status = busy === 'save' ? t("m054") : busy === 'refresh' ? t("m055") : !settings.ready ? t("m056") : dirty ? t("m057") : t("m058")
   return <div className="dsh-prompt-enhance-settings">
-    <h2>提示词增强</h2>
-    {settings.ready && !settings.capabilities.owner ? <p>仅宿主所有者可以管理设置和使用扩展上下文。</p> : <fieldset disabled={busy !== null || !settings.ready}>
+    <h2>{t("m045")}</h2>
+    {settings.ready && !settings.capabilities.owner ? <p>{t("m059")}</p> : <fieldset disabled={busy !== null || !settings.ready}>
       <section className="dsh-prompt-enhance-group" aria-labelledby={`${id}-preference`}>
-        <h3 id={`${id}-preference`}>增强偏好</h3>
-        <div className="dsh-prompt-enhance-choices" role="group" aria-label="增强方式">
-          <label className="dsh-prompt-enhance-choice"><input type="radio" name={`${id}-mode`} value="moderate" checked={draft.mode === 'moderate'} onChange={() => update('mode', 'moderate')} /><span>适度增强<small>理清表达，保留原意</small></span></label>
-          <label className="dsh-prompt-enhance-choice"><input type="radio" name={`${id}-mode`} value="expanded" checked={draft.mode === 'expanded'} onChange={() => update('mode', 'expanded')} /><span>充分展开<small>补充结构与必要细节</small></span></label>
+        <h3 id={`${id}-preference`}>{t("m060")}</h3>
+        <div className="dsh-prompt-enhance-choices" role="group" aria-label={t("m061")}>
+          <label className="dsh-prompt-enhance-choice"><input type="radio" name={`${id}-mode`} value="moderate" checked={draft.mode === 'moderate'} onChange={() => update('mode', 'moderate')} /><span>{t("m011")}<small>{t("m062")}</small></span></label>
+          <label className="dsh-prompt-enhance-choice"><input type="radio" name={`${id}-mode`} value="expanded" checked={draft.mode === 'expanded'} onChange={() => update('mode', 'expanded')} /><span>{t("m012")}<small>{t("m063")}</small></span></label>
         </div>
-        <label className="dsh-prompt-enhance-setting-row">增强后<Select value={draft.adoption} onChange={event => update('adoption', event.target.value as EnhanceSettings['adoption'])}>
-          <option value="direct">直接替换草稿</option><option value="preview">先预览，再决定</option>
+        <label className="dsh-prompt-enhance-setting-row">{t("m064")}<Select value={draft.adoption} onChange={event => update('adoption', event.target.value as EnhanceSettings['adoption'])}>
+          <option value="direct">{t("m065")}</option><option value="preview">{t("m066")}</option>
         </Select></label>
-        <p>{draft.adoption === 'direct' ? '替换后可恢复原文，不会自动发送。' : '查看增强稿，确认后再替换当前输入。'}</p>
+        <p>{draft.adoption === 'direct' ? t("m067") : t("m068")}</p>
+        <div className="dsh-prompt-enhance-feature dsh-prompt-enhance-feature-inset" role="group" aria-labelledby={`${id}-mystery`}>
+          <div className="dsh-prompt-enhance-feature-heading">
+            <div className="dsh-prompt-enhance-feature-copy">
+              <h3 id={`${id}-mystery`}>{t("m069")}</h3>
+              <p>{t("m070")}</p>
+            </div>
+            <Switch label={t("m069")} checked={draft.mystery} disabled={busy !== null || !settings.ready} onChange={value => update('mystery', value)} />
+          </div>
+          <p className="dsh-prompt-enhance-scope-note"><span className="dsh-prompt-enhance-model-tag">DeepSeek</span>{t("m071")}</p>
+        </div>
+      </section>
+      <section className="dsh-prompt-enhance-group dsh-prompt-enhance-feature" aria-labelledby={`${id}-prediction`}>
+        <div className="dsh-prompt-enhance-feature-heading">
+          <div className="dsh-prompt-enhance-feature-copy">
+            <h3 id={`${id}-prediction`}>{t("m072")}</h3>
+            <p>{t("m073")}</p>
+          </div>
+          <Switch label={t("m072")} checked={draft.predictionEnabled === true} disabled={busy !== null || !settings.ready} onChange={value => update('predictionEnabled', value)} />
+        </div>
+        <div className="dsh-prompt-enhance-keyboard-help" aria-label={t("m074")}>
+          <span><kbd>Tab</kbd> {t("m075")}</span><span><kbd>Esc</kbd> {t("m076")}</span><span className="dsh-prompt-enhance-send-note">{t("m077")}</span>
+        </div>
+        <p className="dsh-prompt-enhance-usage-note">{t("m078")}</p>
+        {draft.predictionEnabled && !settings.capabilities.personalMemory && <p role="status">{t("m079")}</p>}
       </section>
       <section className="dsh-prompt-enhance-group" aria-labelledby={`${id}-context`}>
-        <h3 id={`${id}-context`}>参考范围</h3>
-        <div className="dsh-prompt-enhance-choices dsh-prompt-enhance-context-choices" role="group" aria-label="参考范围">
-          {([['draft', '仅草稿'], ['recent', '最近对话'], ['extended', '扩展上下文']] as const).map(([value, label]) => <label className="dsh-prompt-enhance-choice" key={value}><input type="radio" name={`${id}-context`} value={value} checked={draft.context === value} onChange={() => update('context', value)} /><span>{label}</span></label>)}
+        <h3 id={`${id}-context`}>{t("m080")}</h3>
+        <div className="dsh-prompt-enhance-choices dsh-prompt-enhance-context-choices" role="group" aria-label={t("m080")}>
+          {([['draft', t("m013")], ['recent', t("m014")], ['extended', t("m015")]] as const).map(([value, label]) => <label className="dsh-prompt-enhance-choice" key={value}><input type="radio" name={`${id}-context`} value={value} checked={draft.context === value} onChange={() => update('context', value)} /><span>{label}</span></label>)}
         </div>
         <p>{contextHelp[draft.context]}</p>
-        {draft.context === 'extended' && !settings.capabilities.memory && <p role="status">记忆服务当前不可用；增强时会显示实际缺少的来源。</p>}
+        {draft.context === 'extended' && !settings.capabilities.memory && <p role="status">{t("m081")}</p>}
       </section>
-      <section className="dsh-prompt-enhance-group" aria-label="增强模型">
-        <label className="dsh-prompt-enhance-setting-row">增强模型<Select value={draft.modelStrategy} onChange={event => update('modelStrategy', event.target.value as EnhanceSettings['modelStrategy'])}>
-          <option value="follow">跟随当前模型</option><option value="dedicated">指定专用模型</option>
+      <section className="dsh-prompt-enhance-group" aria-label={t("m082")}>
+        <label className="dsh-prompt-enhance-setting-row">{t("m082")}<Select value={draft.modelStrategy} onChange={event => update('modelStrategy', event.target.value as EnhanceSettings['modelStrategy'])}>
+          <option value="follow">{t("m027")}</option><option value="dedicated">{t("m083")}</option>
         </Select></label>
-        <p>{draft.modelStrategy === 'follow' ? '使用会话中已选择的模型与推理档位。' : '从宿主可用模型中选择；不会自动换用其他模型。'}</p>
+        <p>{draft.modelStrategy === 'follow' ? t("m084") : t("m085")}</p>
         {draft.modelStrategy === 'dedicated' && <div className="dsh-prompt-enhance-model-fields">
-          <label>专用模型<Select value={selectedKey} aria-invalid={invalidModel} onChange={event => {
+          <label>{t("m028")}<Select value={selectedKey} aria-invalid={invalidModel} onChange={event => {
             const model = models.find(model => JSON.stringify([model.provider, model.model]) === event.target.value)
             update('dedicated', model ? { provider: model.provider, model: model.model } : null)
-          }}><option value="">选择可用模型</option>
-            {selectedKey && !selected && <option value={selectedKey}>已保存模型不可用，请重新选择</option>}
+          }}><option value="">{t("m086")}</option>
+            {selectedKey && !selected && <option value={selectedKey}>{t("m087")}</option>}
             {models.map(model => <option key={JSON.stringify([model.provider, model.model])} value={JSON.stringify([model.provider, model.model])}>{model.label}</option>)}
           </Select></label>
-          <label>推理档位<Select value={draft.dedicated?.reasoningEffort ?? ''} disabled={!selected} aria-invalid={invalidEffort} onChange={event => {
+          <label>{t("m088")}<Select value={draft.dedicated?.reasoningEffort ?? ''} disabled={!selected} aria-invalid={invalidEffort} onChange={event => {
             if (draft.dedicated) update('dedicated', { provider: draft.dedicated.provider, model: draft.dedicated.model, ...(event.target.value ? { reasoningEffort: event.target.value } : {}) })
-          }}><option value="">模型默认</option>{selected?.efforts.map(effort => <option key={effort} value={effort}>{effort}</option>)}
-            {draft.dedicated?.reasoningEffort && !selected?.efforts.includes(draft.dedicated.reasoningEffort) && <option value={draft.dedicated.reasoningEffort}>已保存档位不可用</option>}
+          }}><option value="">{t("m089")}</option>{selected?.efforts.map(effort => <option key={effort} value={effort}>{effort}</option>)}
+            {draft.dedicated?.reasoningEffort && !selected?.efforts.includes(draft.dedicated.reasoningEffort) && <option value={draft.dedicated.reasoningEffort}>{t("m090")}</option>}
           </Select></label>
         </div>}
-        {(invalidModel || invalidEffort) && <p className="dsh-prompt-enhance-warning" role="alert">{invalidModel ? '专用模型不可用，请重新选择。' : '推理档位不可用，请重新选择。'}不会自动换用其他模型。</p>}
+        {(invalidModel || invalidEffort) && <p className="dsh-prompt-enhance-warning" role="alert">{invalidModel ? t("m091") : t("m092")}{t("m093")}</p>}
       </section>
       <div className="dsh-prompt-enhance-settings-footer">
         <span role="status" className="dsh-prompt-enhance-save-status">{status}</span>
-        <Button variant="ghost" disabled={!dirty} onClick={() => { setDraft(structuredClone(settings.value)); setMessage('') }}>取消</Button>
+        <Button variant="ghost" disabled={!dirty} onClick={() => { setDraft(structuredClone(settings.value)); setMessage('') }}>{t("m094")}</Button>
         <Button variant="primary" disabled={!dirty || invalidModel || invalidEffort} onClick={() => {
           setBusy('save'); setMessage('')
           void settings.save(structuredClone(draft)).then(() => setDraft(structuredClone(settings.value)))
-            .catch(error => setMessage(error instanceof Error ? error.message : '保存失败。')).finally(() => setBusy(null))
-        }}>保存设置</Button>
+            .catch(error => setMessage(error instanceof Error ? error.message : m("m095"))).finally(() => setBusy(null))
+        }}>{t("m096")}</Button>
       </div>
     </fieldset>}
-    {(message || settings.error) && <p className="dsh-prompt-enhance-warning" role="alert">{message || settings.error}</p>}
-    <Button variant="ghost" disabled={busy !== null} onClick={() => { setMessage(''); setBusy('refresh'); void settings.refresh().finally(() => setBusy(null)) }}>刷新模型与设置</Button>
+    {(message || settings.error) && <p className="dsh-prompt-enhance-warning" role="alert">{diagnostic(message || settings.error)}</p>}
+    <Button variant="ghost" disabled={busy !== null} onClick={() => { setMessage(''); setBusy('refresh'); void settings.refresh().finally(() => setBusy(null)) }}>{t("m097")}</Button>
   </div>
 }

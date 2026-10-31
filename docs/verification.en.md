@@ -1,10 +1,57 @@
 # Verification record
 
+## 2026-10-28 bilingual release verification
+
+Added dictionary/parameter parity, English formatting, canonical and legacy message translation, raw diagnostic preservation, and native locale lifecycle checks. Browser fixtures exercise the release bundle, unsaved settings, previews, pending requests, predictions, and responsive themes. Final test results, package hashes, installation, and native acceptance are recorded in `output/bilingual-ui-20261028/delivery.md` in the development workspace. Pending checks are not treated as passed.
+
 [简体中文](verification.md) · English
 
 [Back to README](../README.en.md) · [User guide](guide.en.md) · [Development guide](development.en.md)
 
 Each section preserves the versions, environment and validation scope for its recorded date. Historical local paths are for traceability, not public download locations or current installation instructions.
+
+## 2026-10-28: 0.2.10 approved settings prototype
+
+Mystery injection and prediction now use right-aligned host Switch controls, concise descriptions and separate shortcut/usage hints. The prediction reference explanation is removed. Manual enhancement context choices, save/cancel semantics and memory-unavailable notices remain; no settings schema, prediction prompt or model-call changes were made.
+
+Build/types and 68 tests passed, along with the 39-file package check and 8 native-component UI groups. Additional browser checks cover Space/Enter, cancel, missing-memory notices, and aligned switches without horizontal overflow at 1000/420/320px in both themes. A 6px hit-target overflow found during the first layout check was corrected before the six layout cases passed.
+
+Source baselines, checks and subsequent installation evidence are retained under `output/prompt-settings-ui-20261028/` in the development workspace. This packaged record reflects pre-installation checks; the final daily-installation result is recorded in that directory's `installation.md`.
+
+## 2026-10-28: 0.2.9 desktop integration fixes
+
+The actual rc.3 desktop exposed an empty placeholder inserted after the mirror and a missing undo checkpoint after submission cleared editor history. The placeholder selector now covers later siblings. Explicit acceptance into an empty draft first uses a native empty insertion, then inserts the suggestion, preserving the host's undo mechanism without modifying host files.
+
+Build/types and 68 tests passed, as did the 39-file package check, 7 cross-plugin tests and 12 native-editor browser scenarios including both regressions.
+
+Installed in the daily desktop profile, migrating the old `dsh-link-prompt-enhance 0.2.3` name to `dsh-prompt-improver 0.2.9`, alongside `dsh-memory 0.1.8-rc.2`. Real Windows Pinyin candidates paused suggestions; Tab did not accept during composition, and Space committed Chinese. Empty/suffix acceptance and one Ctrl+Z, native reference menus, structured references plus a real attachment, session switching, manual enhancement and restoring the original draft passed. Light/dark themes and scrolling in a 633px native window showed no horizontal overflow.
+
+The app was restarted normally with temporary CDP port 9222 removed. Dark theme, original model and enhancement preferences were restored; prediction remains off. All 228 original session files, 50 complete memory entries, 11 other plugins and the host ASAR are unchanged. Two test chat turns updated only memory processing metadata. The test chat and one empty switching session remain. The personal-center ledger attributes 16 calls (including manual enhancement) with usage receipts to this plugin, using the daily GLM-5.3-Flash model. See the [daily installation report](../../output/prediction-daily-20261028/installation.md) for evidence, hashes and limits. Non-installation statements below describe the earlier candidate stage.
+
+## 2026-10-28: 0.2.8 input prediction candidate
+
+Preserves the existing 0.2.7 work and adds opt-in input prediction. Suggestions use the enhancement model, the latest three completed turns and read-only memory. Only Tab inserts the ghost text. No daily profile installation or GitHub release was performed.
+
+Checks passed: plugin build/types and 68 tests; memory build/types and 154 tests; automation consumer build/types and 248 tests; root shared-contract check and 7 integration tests. Eleven native-editor browser scenarios passed, covering empty/suffix suggestions, Tab/Esc/Shift+Tab, one native undo and deduplication, references/attachments, composition events, menu priority, late responses after session switching, disabling, trailing empty paragraphs, manual enhancement and scrolling. Light/dark themes and 420px wrapping were visually inspected.
+
+Both plugins passed `npm run check:package` with 39 published files each. Eight enhancement/settings UI scenarios passed, including prediction being off by default and taking effect only after saving.
+
+An isolated real-model run used the existing router adapter with `opencode/big-pickle`: 12,386 ms for an empty composer and 19,600 ms for a suffix. Usage was attributed to `dsh-prompt-improver` and the existing session ID. Memory and conversation bytes remained unchanged. A strict internal suffix JSON format separates completion from answering; users still need to judge suggestion quality.
+
+Evidence is in the development workspace under `output/playwright/prediction-20261028/`: check logs, `native-checks.log`, `enhancement-ui.log`, `prediction-live.json`, and light/dark/narrow screenshots. The browser fixture extracts unmodified rc.3 Lexical, reference nodes, native keymap and undo history; RPC and session bindings are fixtures. Full desktop installation/interaction and actual Windows IME candidate-window testing remain unverified. Composition was tested through synthetic events; native menu arbitration used a fixture menu state. Real-model timings do not generalize to every configured model.
+
+## 2026-10-28: 0.2.7 mystery prompt injection
+
+A new **Mystery prompt injection** checkbox (Settings → Prompt enhancement → Enhancement preferences) defaults to off. When enabled, each enhancement reads the composer's current session model and prepends a fixed declaration block only when the model id matches `/deepseek/i`. Other models and unrecognized aliases are treated as non-DeepSeek: the enhancement still succeeds and reports that the injection was skipped. Only the composer model is consulted; the follow/dedicated enhancement model is irrelevant. The settings file gains a `mystery` field, which reads as off for existing files and is ignored when rolling back to 0.2.6.
+
+| Check | Result |
+| --- | --- |
+| `npm run check` | Build, Host/Client type checks and **54/54 tests passed** |
+| `npm pack` | Normal `prepack` execution; **35 packaged files**, 269.1 kB tarball |
+| Regression tests | Injection with a DeepSeek composer model; skipped with a notice for non-DeepSeek, aliases and a missing model; the dedicated enhancement model does not affect the decision; `mystery-missing` when the result drops the declaration; English drafts use the English declaration without language drift |
+| Settings compatibility | An existing `settings.json` without `mystery` reads as off; enabling it saves and reads back |
+
+Limits: this run did not install into the real desktop profile or retest real models and complete desktop interaction. The interface gained one item while screenshots keep their 0.2.3 capture-version labels. The declaration only changes model output behavior; it does not change server-side quotas, context windows or `max_tokens` limits.
 
 ## 2026-10-27: 0.2.6 rename and old-package migration
 

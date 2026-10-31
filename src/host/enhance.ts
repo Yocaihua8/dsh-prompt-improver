@@ -1,7 +1,7 @@
 import { BlockAssembler, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { Context } from '@deepseek-ai/cordis'
-import { DRAFT_CHAR_LIMIT, isEnhanceMode, TIMEOUT_MS, validateSettings } from '../shared/types.js'
+import { DRAFT_CHAR_LIMIT, isDeepSeekModel, isEnhanceMode, TIMEOUT_MS, validSelection, validateSettings } from '../shared/types.js'
 import type { EnhanceRequest, EnhanceResponse } from '../shared/types.js'
 import { validateTokens } from '../shared/references.js'
 import { collectContext } from './context.js'
@@ -14,7 +14,7 @@ export class EnhanceError extends Error {
 }
 
 /** Bound local reads and adapters even if they fail to observe cancellation. */
-async function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+export async function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   let stop!: () => void
   const aborted = new Promise<never>((_, reject) => {
     stop = () => reject(signal.reason)
@@ -34,6 +34,7 @@ export function validateRequest(request: EnhanceRequest): void {
       request.selection.reasoningEffort !== undefined &&
         (typeof request.selection.reasoningEffort !== 'string' || !request.selection.reasoningEffort.trim()) ||
       !Array.isArray(request.protectedTokens) || request.protectedTokens.length > 128 ||
+      !(request.currentSelection === undefined || request.currentSelection === null || validSelection(request.currentSelection)) ||
       request.protectedTokens.some(token => typeof token !== 'string' || !/^⟦DSH_REF_[A-Za-z0-9-]+_\d+⟧$/u.test(token))) {
     throw new EnhanceError('invalid-request', `请输入有效草稿（最多 ${DRAFT_CHAR_LIMIT.toLocaleString()} 字符）并选择可用模型。`)
   }
@@ -61,6 +62,13 @@ export async function enhanceDraft(
     return await abortable((async () => {
     signal.throwIfAborted()
     const context = await collectContext(ctx, request, signal, services)
+    // Only the composer model decides the injection; the enhancement model is irrelevant.
+    const injectMystery = request.settings?.mystery === true && isDeepSeekModel(request.currentSelection?.model)
+    if (request.settings?.mystery === true && !injectMystery) {
+      context.warnings.push(request.currentSelection
+        ? '当前选择的模型不是 DeepSeek，已跳过神秘提示词注入。'
+        : '未能识别当前选择的模型，已跳过神秘提示词注入。')
+    }
     const selection = request.settings?.modelStrategy === 'dedicated' ? request.settings.dedicated! : request.selection
     if (request.settings?.modelStrategy === 'dedicated') {
       let available = false
@@ -76,7 +84,7 @@ export async function enhanceDraft(
     for await (const chunk of call.stream({
       ...call.config,
       sessionId: SessionId(request.sessionId),
-      system: systemPrompt(request.mode),
+      system: systemPrompt(request.mode, injectMystery),
       messages: [{ role: 'user', content: [{ type: 'text', text: userPrompt(request, context) }] }],
       signal,
     })) {
@@ -95,6 +103,9 @@ export async function enhanceDraft(
     const text = blocks.flatMap(block => block.type === 'text' ? [block.text] : []).join('').trim()
     if (!text) throw new EnhanceError('empty-result', '模型返回了空结果，已保留原文。')
     if (text.length > DRAFT_CHAR_LIMIT) throw new EnhanceError('result-too-long', '增强结果过长，已保留原文。')
+    if (injectMystery && !/能力解放声明|Capability Liberation Notice/.test(text.slice(0, 600))) {
+      throw new EnhanceError('mystery-missing', '神秘提示词注入未生效，已保留原文；请重试或关闭该设置。')
+    }
     try { validateTokens(text, request.protectedTokens) }
     catch { throw new EnhanceError('invalid-references', '增强结果未完整保留引用，已保留原文。') }
     // Catch obvious Chinese/Latin translation drift without another model call.
