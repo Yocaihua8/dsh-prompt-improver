@@ -1,5 +1,5 @@
 import type { SemanticDraft } from '../shared/references.js';
-import type { EnhanceMode, EnhanceRequest, EnhanceResponse, EnhanceSettings, ModelSelection } from '../shared/types.js';
+import type { EnhanceMode, EnhanceRequest, EnhanceResponse, EnhanceSettings, EnhanceTemplate, ModelSelection } from '../shared/types.js';
 export interface ComposerSnapshot {
     sessionId: string;
     revision: number;
@@ -38,7 +38,14 @@ export declare class EnhanceController {
     get canUndo(): boolean;
     reconcile(): void;
     cancel(message?: string): void;
-    start(mode: EnhanceMode, settings?: EnhanceSettings, previewOnce?: boolean): Promise<void>;
+    start(mode: EnhanceMode, settings?: EnhanceSettings, previewOnce?: boolean, templateInstruction?: string): Promise<void>;
+    /** Left-click dispatch by the saved default action; falls back to the plain enhancement. */
+    startDefault(settings: EnhanceSettings | undefined): Promise<void>;
+    /** Local template application: synchronous replacement with the shared undo slot. */
+    applyTemplate(template: EnhanceTemplate): void;
+    /** Re-run the enhancement for the snapshot already shown in the preview. */
+    regenerate(mode: EnhanceMode, settings?: EnhanceSettings): Promise<void>;
+    private run;
     private apply;
     acceptPreview(): Promise<void>;
     closePreview(): void;

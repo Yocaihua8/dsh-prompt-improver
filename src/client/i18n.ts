@@ -22,7 +22,7 @@ export function installLocale(ctx: Context): void {
 }
 export function t<K extends MessageKey>(key: K, ...[params]: Args<K>): string {
  let value = translate ? translate(key, params) : interpolate(localeId().startsWith('zh') ? zh[key] : en[key], params)
- if (!localeId().startsWith('zh') && params && Number(String((params as MessageParams).p0).replaceAll(',', '')) === 1) value = value.replace(/\b(model calls|calls|tools|items|conversations|days)\b/, word => word.slice(0,-1))
+ if (!localeId().startsWith('zh') && params && Number(String((params as MessageParams).p0).replaceAll(',', '')) === 1) value = value.replace(/\b(model calls|calls|tools|items|conversations|days|chars)\b/, word => word.slice(0,-1))
  return value
 }
 export function localize(message: string, descriptor?: UiMessage, depth = 0): string {

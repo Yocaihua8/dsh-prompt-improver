@@ -82,14 +82,18 @@ Release 应从已验证的提交打标签，上传该提交经 `npm pack` 生成
 
 | 模块 | 职责 |
 | --- | --- |
-| `src/client/` | 输入框按钮、请求状态、对照预览、设置页和草稿生命周期保护 |
-| `src/host/` | 增强调用、提示词、历史、项目检索与设置持久化 |
-| `src/shared/` | 请求与响应类型、默认设置、引用保护和生成契约 |
+| `src/client/` | 输入框按钮、模板菜单、请求状态、对照预览、设置页和草稿生命周期保护 |
+| `src/host/` | 增强调用（含模板指令）、提示词、历史、项目检索与设置持久化 |
+| `src/shared/` | 请求与响应类型、模板类型与归一、默认设置、引用保护和生成契约 |
 | `src/index.ts` | Host 插件注册与 RPC 入口 |
 
 RPC 包括 `enhance`、`getSettings`、`saveSettings` 和 `capabilities`。`enhance` 响应保留 `text`，可返回实际上下文报告 `context` 和有效模型 `selection`。
 
+0.4.0 新增：`EnhanceSettings` 可选 `templates`（≤20 条，`{draft}` 占位符恰好一个，归一化静默过滤坏条目）与 `defaultAction`（左键默认执行动作：enhance / template-apply / template-adapt，指向失效时静默回落 enhance）；`EnhanceRequest` 可选 `templateInstruction`（模板填入草稿后的完整指令，Host 用其替换「增强方式」指令段，安全链路不变）。模板本地套用在客户端完成，不进 RPC。
+
 增强请求声明 session 资源授权；设置管理和扩展上下文读取额外检查 owner。点击时固定设置、草稿、附件和有效模型快照，不读取请求之后的新设置；响应和预览采用都要符合客户端当前状态，避免覆盖新输入。
+
+开发中（0.3.0 候选）：`EnhanceSettings` 新增可选 `customInstructions`（≤500 字符，保存与校验时规范化，空值不写入持久化对象）；`systemPrompt` 将其作为固定前缀的用户附加要求注入增强系统提示，声明不得覆盖保留、引用与安全规则，输入预测不应用。`src/client/diff.ts` 为预览提供词级差异（行对齐 + 有界 LCS，超限退化为整块标记），预测超长建议改为宿主按词界截断并提示。
 
 0.2.3 在模型调用中传递已有会话 ID，供个人中心 0.1.17 关联辅助用量，不新增聊天消息或独立插件上报流程。
 
@@ -113,7 +117,7 @@ Typert 由官方生成器生成 `lib/typert.*`，不要手改。构建器从本�
 
 设置新增可选 `predictionEnabled`，缺省规范化为 `false`。新增 `promptEnhance.predict(request, signal)`，请求包含 `sessionId`、允许为空的 `draft`、`protectedTokens`、`selection` 和设置快照；响应沿用 `{ text, context?, selection? }`，`text` 是追加文本。RPC 校验会话资源、owner、已保存开关及设置一致性；拒绝 IM、子会话和带外部 principal 的历史。模型内部仅接受 `{ "suffix": "..." }`，并核验长度及引用占位符。
 
-客户端通过 `conversation.input.overlay` 挂载预测组件，以 rc.3 的 `data-composer-input`、`data-composer-card` 和 `data-trigger-menu` 绑定编辑器。显示层复制排版而不写入 Lexical 文档；正式接受使用 `inputActions.captureInsertion/insertText`。快照包含草稿版本、结构化引用、附件、模型、设置及事件窗口版本；另以内容身份去重，避免撤销后立即重复预测。
+客户端通过 `conversation.input.overlay` 挂载预测组件，以 rc.3 的 `data-composer-input`、`data-composer-card` 和 `data-trigger-menu` 绑定编辑器。显示层复制排版而不写入 Lexical 文档；正式接受使用 `inputActions.captureInsertion/insertText`。快照包含草稿版本、结构化引用、附件、模型、设置及事件窗口版本；另以内容身份去重，避免撤销后立即重复预测。Alt+→ 按分词单元逐词接受（剩余建议保持灰字），Alt+\ 清除当前内容去重并强制一次请求（仍受单请求与 3 秒间隔约束）；两者由 `prediction-controller.ts` 的 `acceptWord`/`manualTrigger` 实现。
 
 项目记忆优先使用 v2 `recallForContext`（用途 enhance），仅未声明 v2 的旧服务可走 v1。非项目会话使用 v2 `recallForPersonal`；该接口仅在 Host 内可见。仓库内 `shared/context-memory-contract.ts` 与开发目录公共契约保持一致，构建自动生成消费者副本。
 

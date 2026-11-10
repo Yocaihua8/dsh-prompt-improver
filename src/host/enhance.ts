@@ -44,6 +44,13 @@ export function validateRequest(request: EnhanceRequest): void {
     try { validateSettings(request.settings) }
     catch { throw new EnhanceError('invalid-settings', '提示词增强设置无效。') }
   }
+  // Template adaptation carries the filled instruction; it must embed the draft it claims to adapt.
+  if (request.templateInstruction !== undefined &&
+      (typeof request.templateInstruction !== 'string' || !request.templateInstruction.trim() ||
+       request.templateInstruction.length > DRAFT_CHAR_LIMIT * 4 ||
+       !request.templateInstruction.includes(request.draft))) {
+    throw new EnhanceError('invalid-template', '增强模板无效，请重试。')
+  }
 }
 
 /** One auxiliary call; never enters the agent loop or appends conversation messages. */
@@ -64,6 +71,7 @@ export async function enhanceDraft(
     const context = await collectContext(ctx, request, signal, services)
     // Only the composer model decides the injection; the enhancement model is irrelevant.
     const injectMystery = request.settings?.mystery === true && isDeepSeekModel(request.currentSelection?.model)
+    const userRules = request.settings?.customInstructions?.trim() || undefined
     if (request.settings?.mystery === true && !injectMystery) {
       context.warnings.push(request.currentSelection
         ? '当前选择的模型不是 DeepSeek，已跳过神秘提示词注入。'
@@ -84,7 +92,7 @@ export async function enhanceDraft(
     for await (const chunk of call.stream({
       ...call.config,
       sessionId: SessionId(request.sessionId),
-      system: systemPrompt(request.mode, injectMystery),
+      system: systemPrompt(request.mode, injectMystery, userRules, request.templateInstruction),
       messages: [{ role: 'user', content: [{ type: 'text', text: userPrompt(request, context) }] }],
       signal,
     })) {

@@ -16,6 +16,8 @@ export interface EnhanceRequest {
     settings?: EnhanceSettings;
     /** Composer model at click time; gates the mystery injection independently of `selection`. */
     currentSelection?: ModelSelection | null;
+    /** Template as a complete instruction ({draft} already filled with the draft); replaces the mode directive. */
+    templateInstruction?: string;
 }
 export interface EnhanceResponse {
     text: string;
@@ -34,7 +36,7 @@ export interface PredictionResponse extends EnhanceResponse {
 export declare const PREDICTION_CHAR_LIMIT = 200;
 export declare const PREDICTION_TIMEOUT_MS = 30000;
 export declare const PREDICTION_DEBOUNCE_MS = 800;
-export declare const PREDICTION_INTERVAL_MS = 3000;
+export declare const PREDICTION_INTERVAL_MS = 8000;
 export interface EnhanceSettings {
     mode: EnhanceMode;
     adoption: 'direct' | 'preview';
@@ -45,7 +47,35 @@ export interface EnhanceSettings {
     mystery: boolean;
     /** Missing in older clients/settings; normalized to false. */
     predictionEnabled?: boolean;
+    /** Extra wording rules injected into the enhance system prompt; absent when empty. */
+    customInstructions?: string;
+    /** Custom templates; missing or empty in older clients/settings. */
+    templates?: EnhanceTemplate[];
+    /** Left-click default action; missing in older clients/settings; normalized to enhance. */
+    defaultAction?: DefaultAction;
 }
+export declare const CUSTOM_INSTRUCTION_LIMIT = 500;
+export declare const DRAFT_PLACEHOLDER = "{draft}";
+export declare const TEMPLATE_NAME_LIMIT = 40;
+export declare const TEMPLATE_TEXT_LIMIT = 2000;
+export declare const TEMPLATE_LIMIT = 20;
+export interface EnhanceTemplate {
+    id: string;
+    name: string;
+    text: string;
+}
+/** Left-click default action; enhance keeps the released behavior. */
+export type DefaultAction = {
+    kind: 'enhance';
+} | {
+    kind: 'template-apply';
+    templateId: string;
+} | {
+    kind: 'template-adapt';
+    templateId: string;
+};
+/** Local application: the draft fills the placeholder; templates keep their remaining wording. */
+export declare function applyTemplate(template: EnhanceTemplate, draft: string): string;
 export interface ContextSource {
     kind: 'conversation' | 'memory' | 'project';
     label: string;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { predictDraft, predictionMemory } from '../src/host/prediction.js'
+import { predictDraft, predictionMemory, truncateAtWordBoundary } from '../src/host/prediction.js'
 import { DEFAULT_SETTINGS, validateSettings, type PredictionRequest } from '../src/shared/types.js'
 import type { ContextMemoryService } from '../src/shared/generated/context-memory-contract.js'
 
@@ -60,10 +60,22 @@ test('prediction preserves suffix spaces and uses fixed recent context independe
   assert.doesNotMatch(f.calls[0].system, /能力解放声明|token 额度无上限/)
   assert.match(result.context!.warnings.join(), /记忆服务不可用/)
 })
-test('empty output is no suggestion; long, incomplete and reference-token outputs are rejected', async () => {
+test('empty output is no suggestion; over-long suggestions truncate at a word boundary; reference tokens are rejected', async () => {
   assert.equal((await predictDraft(fixture('  ').ctx, request, signal())).text, '')
-  for (const text of ['中'.repeat(201), '⟦DSH_REF_test_0⟧']) await assert.rejects(predictDraft(fixture(text).ctx, request, signal()), { code: 'invalid-result' })
+  const long = await predictDraft(fixture('中'.repeat(201)).ctx, request, signal())
+  assert.equal(long.text, '中'.repeat(200))
+  assert.match(long.context!.warnings.join(), /截断/)
+  const spaced = await predictDraft(fixture(`${'词 '.repeat(120)}尾巴`).ctx, request, signal())
+  assert.ok(Array.from(spaced.text).length <= 200)
+  await assert.rejects(predictDraft(fixture('⟦DSH_REF_test_0⟧').ctx, request, signal()), { code: 'invalid-result' })
   await assert.rejects(predictDraft(fixture('文字', { finish: 'max-tokens' }).ctx, request, signal()), { code: 'unexpected-result' })
+})
+test('truncateAtWordBoundary never exceeds the limit and keeps whole words', () => {
+  assert.equal(truncateAtWordBoundary('a'.repeat(200), 200), 'a'.repeat(200))
+  assert.equal(truncateAtWordBoundary('how a rainbow forms. extra', 18), 'how a rainbow ')
+  assert.equal(truncateAtWordBoundary('的形成过程，尽量', 5), '的形成过程')
+  assert.equal(Array.from(truncateAtWordBoundary('词 '.repeat(200), 200)).length, 200)
+  assert.equal(truncateAtWordBoundary('短的', 200), '短的')
 })
 test('plain answers, extra JSON fields and malformed model output are not inserted', async () => {
   for (const text of ['彩虹是折射形成的。', '{"suffix":"next","answer":"unrequested"}', '{"suffix":42}', '```json\n{"suffix":"next"}\n```']) {

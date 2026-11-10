@@ -82,14 +82,18 @@ Before publishing, use an isolated `DSH_HOME` and test profile to verify GitHub 
 
 | Module | Responsibility |
 | --- | --- |
-| `src/client/` | Input button, request state, comparison preview, settings and draft lifecycle protection |
-| `src/host/` | Enhancement calls, prompts, history, project retrieval and settings persistence |
-| `src/shared/` | Request/response types, defaults, reference protection and generated contract |
+| `src/client/` | Input button, template menu, request state, comparison preview, settings and draft lifecycle protection |
+| `src/host/` | Enhancement calls (including template instructions), prompts, history, project retrieval and settings persistence |
+| `src/shared/` | Request/response types, template types and normalization, defaults, reference protection and generated contract |
 | `src/index.ts` | Host plugin registration and RPC entry points |
 
 RPC methods are `enhance`, `getSettings`, `saveSettings` and `capabilities`. The `enhance` response retains `text` and can return an actual-context report in `context` and the effective model in `selection`.
 
+0.4.0 additions: `EnhanceSettings` gains optional `templates` (up to 20 entries, exactly one `{draft}` placeholder each; normalization silently filters invalid entries) and `defaultAction` (the left-click default action: enhance / template-apply / template-adapt; silently falls back to enhance when the target template is missing); `EnhanceRequest` gains optional `templateInstruction` (the template with the draft filled in as a complete instruction — the host replaces the "enhancement mode" directive with it while keeping the safety chain unchanged). Local template application happens in the client and never enters RPC.
+
 Enhancement requests declare session-resource authorization. Settings management and extended-context reads also check owner permissions. Settings, draft, attachments and the effective model are captured at click time; later settings are not read into that request. Both response application and preview adoption must match the client's current state to avoid overwriting new input.
+
+In development for the next release: `EnhanceSettings` gains an optional `customInstructions` field (up to 500 characters, normalized on save and validation, omitted from the persisted object when empty); `systemPrompt` injects it as a user-added requirement with a fixed prefix stating that the preservation, reference and safety rules must not be overridden, and input prediction does not apply it. `src/client/diff.ts` provides the preview's word-level diff (line alignment plus a bounded LCS, degrading to whole-block markers beyond the limit), and over-long prediction suggestions are truncated at a word boundary on the Host with a notice.
 
 Version 0.2.3 passes the existing session ID to model calls so Personal Center 0.1.17 can associate auxiliary usage, without adding a chat message or a separate plugin reporting flow.
 
@@ -113,7 +117,7 @@ Historical quality and installation evidence is in the [verification record](ver
 
 `predictionEnabled` is optional for compatibility and normalizes to false. The new owner/session-authorized `promptEnhance.predict(request, signal)` accepts `sessionId`, an optionally empty `draft`, protected reference tokens, model selection and a settings snapshot. It returns `{ text, context?, selection? }`; text is only the suffix. The Host checks saved settings, excludes IM/subagent/remote-principal history, and validates the model's private `{ "suffix": "..." }` response before returning it.
 
-The client mounts through `conversation.input.overlay`, using rc.3 composer data attributes for a presentation-only mirror. Acceptance uses the native `captureInsertion/insertText` API, preserving reference chips, attachments and undo. Revision guards protect pending results; semantic deduplication suppresses immediate re-prediction after undo or dismissal.
+The client mounts through `conversation.input.overlay`, using rc.3 composer data attributes for a presentation-only mirror. Acceptance uses the native `captureInsertion/insertText` API, preserving reference chips, attachments and undo. Revision guards protect pending results; semantic deduplication suppresses immediate re-prediction after undo or dismissal. Alt+→ accepts one segmented word at a time (the remainder stays as ghost text), and Alt+\ clears the current content dedupe and forces one request, still bounded by the single-request and 3-second interval rules; both are implemented by `acceptWord`/`manualTrigger` in `prediction-controller.ts`.
 
 Project memory uses v2 `recallForContext` with purpose `enhance`, or v1 only when v2 is undeclared. Projectless recall uses the new Host-only `recallForPersonal`. Keep the local context contract aligned with the workspace shared source and generate copies through the existing sync script. See the browser verification README and the workspace prediction integration test for validation.
 

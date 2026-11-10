@@ -1,7 +1,8 @@
 import { sourceLabel, installLocale, t, m, localize, diagnostic, useLocale } from './i18n.js'
 import type { Context } from '@deepseek-ai/cordis'
-import { useEffect, useLayoutEffect, useMemo, useReducer, useState } from 'react'
-import { Button, Modal, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { Button, Menu, Modal, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-gateway/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
@@ -15,7 +16,10 @@ import { TYPERT_REMOTE } from '../../lib/typert.remote-client.js'
 import { EnhanceController } from './controller.js'
 import { EnhanceSettingsPage, SettingsClient } from './settings.js'
 import type { ControllerPort } from './controller.js'
-import { DRAFT_CHAR_LIMIT } from '../shared/types.js'
+import { diffTexts } from './diff.js'
+import type { DiffSegment } from './diff.js'
+import { DRAFT_CHAR_LIMIT, TEMPLATE_TEXT_LIMIT } from '../shared/types.js'
+import type { EnhanceTemplate } from '../shared/types.js'
 import styles from './style.css'
 import { PredictionOverlay } from './prediction.js'
 
@@ -44,13 +48,39 @@ function EnhanceIcon({ pending, restore }: { pending: boolean; restore: boolean 
   </svg>
 }
 
+function renderDiff(segments: DiffSegment[]) {
+  return segments.map((segment, index) => segment.kind === 'same' ? <span key={index}>{segment.text}</span>
+    : <mark key={index} className={segment.kind === 'add' ? 'dsh-prompt-enhance-diff-add' : 'dsh-prompt-enhance-diff-del'}>{segment.text}</mark>)
+}
+
+/** 行内星光：模板 AI 适配入口（点击与主区 onSelect 隔离）。 */
+function AdaptSpark({ template, pending, onAdapt }: { template: EnhanceTemplate; pending: boolean; onAdapt: () => void }) {
+  return <button type="button" className="dsh-prompt-enhance-menu-adapt" disabled={pending}
+    aria-label={t("m183", { p0: template.name })}
+    onMouseDown={event => event.stopPropagation()}
+    onClick={event => { event.stopPropagation(); onAdapt() }}
+    onContextMenu={event => event.stopPropagation()}>
+    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M9.6 5.4 11.76 10.44 16.8 12.6 11.76 14.76 9.6 19.8 7.44 14.76 2.4 12.6 7.44 10.44Z" />
+      <path d="M18 4.2 19.08 6.72 21.6 7.8 19.08 8.88 18 11.4 16.92 8.88 14.4 7.8 16.92 6.72Z" />
+    </svg>
+  </button>
+}
+
 function EnhanceButton({ binding, settings }: { binding: ViewBinding; settings: SettingsClient }) {
   useLocale()
   const [, render] = useReducer((n: number) => n + 1, 0)
   const [compareOriginal, setCompareOriginal] = useState(true)
   const [previewSettings, setPreviewSettings] = useState(settings.value)
   const [dismissed, setDismissed] = useState('')
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
   const controller = useMemo(() => new EnhanceController({ ...binding, changed: render, nonce: () => crypto.randomUUID() }), [binding])
+  const previewDiff = useMemo(() => controller.preview
+    ? diffTexts(controller.preview.snapshot.draft.text, controller.preview.draft.text)
+    : null, [controller.preview])
   useLayoutEffect(() => {
     const unsubscribe = binding.subscribe(() => { controller.reconcile(); render() })
     return () => { unsubscribe(); controller.dispose() }
@@ -72,42 +102,131 @@ function EnhanceButton({ binding, settings }: { binding: ViewBinding; settings: 
   const start = () => {
     if (reason) return
     const captured = structuredClone(settings.value)
-    setDismissed(''); setCompareOriginal(true); setPreviewSettings(captured)
-    void controller.start(mode, captured)
+    setDismissed(''); setCompareOriginal(true); setPreviewSettings(captured); setCopyState('idle')
+    void controller.startDefault(captured)
+  }
+  const templates = settings.value.templates ?? []
+  const defaultAction = settings.value.defaultAction
+  const defaultMark = (id: string) => defaultAction && defaultAction.kind !== 'enhance' && defaultAction.templateId === id
+    ? <span className="dsh-prompt-enhance-menu-default">{t("m186")}</span> : undefined
+  const enhanceDefault = !defaultAction || defaultAction.kind === 'enhance'
+  const closeMenu = () => setMenuOpen(false)
+  const openSettings = () => { closeMenu(); settings.requestOpenTemplates?.() }
+  const regenerate = () => {
+    if (!controller.preview) return
+    setDismissed(''); setCopyState('idle')
+    void controller.regenerate(previewSettings.mode, previewSettings)
+  }
+  const copyPreview = () => {
+    const text = controller.preview?.draft.text
+    if (!text) return
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopyState('copied'); window.setTimeout(() => setCopyState('idle'), 1500)
+    }, () => setCopyState('failed'))
   }
   return <div className="dsh-prompt-enhance" data-prompt-enhance="true">
-    <Button variant="ghost" size="sm" type="button" className="dsh-prompt-enhance-trigger"
+    <Menu open={menuOpen} portal side="top" align="start"
+      anchor={<span className="dsh-prompt-enhance-anchor"><Button variant="ghost" size="sm" type="button" className="dsh-prompt-enhance-trigger"
+        ref={buttonRef}
         aria-label={pending ? t("m016") : canUndo ? t("m017") : t("m018")} aria-busy={pending}
+        aria-haspopup="menu" aria-expanded={menuOpen}
         aria-disabled={!pending && !canUndo && !!reason}
-        title={pending ? t("m019") : canUndo ? t("m017") : diagnostic(reason) || t("m020", { p0: labels[mode] })}
+        title={pending ? t("m019") : canUndo ? t("m017") : diagnostic(reason) || t("m020", { p0: labels[mode], p1: contextLabels[settings.value.context], p2: settings.value.modelStrategy === 'dedicated' ? t("m028") : t("m027") })}
         onClick={() => {
           setDismissed('')
           if (pending) controller.cancel()
           else if (canUndo) controller.restore()
           else start()
-        }}><EnhanceIcon pending={pending} restore={canUndo} /></Button>
+        }}
+        onContextMenu={event => {
+          event.preventDefault()
+          event.stopPropagation()
+          if (pending || canUndo || reason) return
+          setMenuOpen(true)
+        }}><EnhanceIcon pending={pending} restore={canUndo} /></Button></span>}
+      items={[
+        { type: 'label', id: 'group-ai', text: 'AI 增强' },
+        { id: 'ai', label: <>{t("m180")}{enhanceDefault && <span className="dsh-prompt-enhance-menu-default">{t("m186")}</span>}</> },
+        { id: 'predict', label: t("m181") },
+      ]}
+      onSelect={id => {
+        closeMenu()
+        if (id === 'ai') { setDismissed(''); setCompareOriginal(true); setPreviewSettings(structuredClone(settings.value)); setCopyState('idle'); void controller.start(mode, structuredClone(settings.value)); return }
+        if (id === 'predict') {
+          // 预测下一句：聚焦输入框后派发 Alt+\，走正式预测的资格检查与手动触发链路。
+          const editor = buttonRef.current?.closest('[data-composer-card]')?.querySelector('[data-composer-input]')
+          if (editor instanceof HTMLElement) {
+            editor.focus()
+            editor.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', altKey: true, bubbles: true }))
+          }
+        }
+      }}
+      onClose={closeMenu}
+      getAnchorRect={() => buttonRef.current?.getBoundingClientRect() ?? null}>
+      {menuOpen && !pending && !canUndo && !reason && templates.length ? <>
+        <div className="dsh-prompt-enhance-menu-sep" role="separator" />
+        <div className="dsh-prompt-enhance-menu-label" role="presentation">{t("m182")}</div>
+        {templates.map(template => <div className="dsh-prompt-enhance-menu-row" key={template.id} role="presentation">
+          <button type="button" role="menuitem" className="dsh-prompt-enhance-menu-row-main" onClick={() => {
+            closeMenu()
+            const captured = structuredClone(settings.value)
+            controller.applyTemplate(template)
+            void captured
+          }} onMouseDown={event => event.stopPropagation()}>
+            <span className="dsh-prompt-enhance-menu-row-name">{template.name}{defaultMark(template.id)}</span>
+            <span className="dsh-prompt-enhance-menu-row-hint">{template.text.replace('{draft}', '〔draft〕').slice(0, 24)}</span>
+          </button>
+          <AdaptSpark template={template} pending={pending} onAdapt={() => {
+            closeMenu()
+            const captured = structuredClone(settings.value)
+            setDismissed(''); setCompareOriginal(true); setPreviewSettings(captured); setCopyState('idle')
+            void controller.start(mode, captured, false, template.text)
+          }} />
+        </div>)}
+        <div className="dsh-prompt-enhance-menu-row" role="presentation">
+          <span className="dsh-prompt-enhance-menu-hint">{t("m184")}</span>
+          <button type="button" className="dsh-prompt-enhance-menu-gear" aria-label={t("m185")}
+            onMouseDown={event => event.stopPropagation()}
+            onClick={event => { event.stopPropagation(); openSettings() }}
+            onContextMenu={event => event.stopPropagation()}>
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="3.2" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03Z" />
+            </svg>
+          </button>
+        </div>
+      </> : undefined}
+    </Menu>
     <span className="dsh-prompt-enhance-sr" role="status" aria-live="polite">{pending ? t("m021") : diagnostic(controller.message)}</span>
     {controller.message && dismissed !== controller.message && <Toast key={controller.message}
-      text={diagnostic(controller.message)} holdMs={4500} onDone={() => setDismissed(controller.message)} />}
-    <Modal open={!!controller.preview} onClose={() => controller.closePreview()} title={t("m022")} closeLabel={t("m023")}
+      text={diagnostic(controller.message)} holdMs={4500} onDone={() => setDismissed(controller.message)} />}    <Modal open={!!controller.preview} onClose={() => controller.closePreview()} title={t("m022")} closeLabel={t("m023")}
       description={`${labels[previewSettings.mode]} · ${contextLabels[previewSettings.context]}`}
       className="dsh-prompt-enhance-dialog" contentClassName="dsh-prompt-enhance-dialog-body" footer={<>
-        <Button variant="ghost" onClick={() => controller.closePreview()}>{t("m024")}</Button>
-        <Button variant="primary" disabled={controller.checkingPreview} onClick={() => { setDismissed(''); void controller.acceptPreview() }}>{controller.checkingPreview ? t("m025") : t("m026")}</Button>
+        <Button variant="ghost" className="dsh-prompt-enhance-regen" disabled={pending || controller.checkingPreview} onClick={regenerate}>{pending ? t("m021") : t("m177")}</Button>
+        <Button variant="ghost" disabled={pending || controller.checkingPreview} onClick={() => controller.closePreview()}>{t("m024")}</Button>
+        <Button variant="primary" disabled={pending || controller.checkingPreview} onClick={() => { setDismissed(''); void controller.acceptPreview() }}>{controller.checkingPreview ? t("m025") : t("m026")}</Button>
       </>}>
-      {controller.preview && <>
+      {controller.preview && previewDiff && <>
         <div className="dsh-prompt-enhance-preview-toolbar">
           <p className="dsh-prompt-enhance-meta">{selection?.model}{selection?.reasoningEffort && ` · ${selection.reasoningEffort}`} · {previewSettings.modelStrategy === 'follow' ? t("m027") : t("m028")}
-            {controller.preview.snapshot.attachmentIds.length > 0 && t("m029", { p0: controller.preview.snapshot.attachmentIds.length })}</p>
-          <label className="dsh-prompt-enhance-compare-toggle"><input type="checkbox" checked={compareOriginal} onChange={event => setCompareOriginal(event.target.checked)} />{t("m030")}</label>
+            {controller.preview.snapshot.attachmentIds.length > 0 && t("m029", { p0: controller.preview.snapshot.attachmentIds.length })}
+            {previewSettings.customInstructions?.trim() && ` · ${t("m165")}`}
+            {` · ${t("m171", { p0: controller.preview.snapshot.draft.text.length.toLocaleString(), p1: controller.preview.draft.text.length.toLocaleString() })}`}</p>
+          <div className="dsh-prompt-enhance-preview-actions">
+            <label className="dsh-prompt-enhance-compare-toggle"><input type="checkbox" checked={compareOriginal} onChange={event => setCompareOriginal(event.target.checked)} />{t("m030")}</label>
+            <Button variant="ghost" size="sm" onClick={copyPreview}>{copyState === 'copied' ? t("m169") : t("m168")}</Button>
+          </div>
         </div>
+        {copyState === 'failed' && <p className="dsh-prompt-enhance-warning" role="alert">{t("m170")}</p>}
         <div className={`dsh-prompt-enhance-comparison${compareOriginal ? '' : ' dsh-prompt-enhance-comparison-solo'}`}>
-          {compareOriginal && <section className="dsh-prompt-enhance-original"><h3>{t("m031")}</h3><pre className="dsh-prompt-enhance-text">{controller.preview.snapshot.draft.text}</pre></section>}
-          <section><h3>{t("m032")}</h3><pre className="dsh-prompt-enhance-text">{controller.preview.draft.text}</pre></section>
+          <span className="dsh-prompt-enhance-sr" role="status">{t("m173", { p0: previewDiff.added.toLocaleString(), p1: previewDiff.removed.toLocaleString() })}</span>
+          {compareOriginal && <section className="dsh-prompt-enhance-original"><h3>{t("m031")}</h3><pre className="dsh-prompt-enhance-text">{renderDiff(previewDiff.original)}</pre></section>}
+          <section><h3>{t("m032")}</h3><pre className="dsh-prompt-enhance-text">{renderDiff(previewDiff.enhanced)}</pre></section>
         </div>
         {controller.preview.response.context?.warnings.map((warning, index) => <p className="dsh-prompt-enhance-warning" key={warning} role="status">{localize(warning, controller.preview!.response.context?.warningMessages?.[index] ?? undefined)}</p>)}
         <details className="dsh-prompt-enhance-sources"><summary>{t("m033")}{controller.preview.response.context?.sources.length ?? 0}{t("m034")}</summary>
-          {controller.preview.response.context?.sources.map((source, index) => <section className="dsh-prompt-enhance-source" key={index}><h4>{sourceLabel(source)}</h4><pre className="dsh-prompt-enhance-text">{source.text}</pre></section>)}
+          {controller.preview.response.context?.sources.map((source, index) => <section className="dsh-prompt-enhance-source" key={index}><h4>{sourceLabel(source)}<span className="dsh-prompt-enhance-source-size"> · {t("m172", { p0: source.text.length.toLocaleString() })}</span></h4><pre className="dsh-prompt-enhance-text">{source.text}</pre></section>)}
           {!controller.preview.response.context?.sources.length && <p>{t("m035")}</p>}
         </details>
       </>}

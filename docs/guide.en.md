@@ -8,30 +8,43 @@ Applies to Prompt Improver 0.2.11 and DSH 0.2.1-rc.3. Public Release installatio
 
 ## Improve and apply a draft
 
-Write a draft in a regular conversation, then click the sparkle button at the bottom of the input box, to the left of the model selector. The plugin uses your saved settings. Click the same button again while processing to cancel.
+Write a draft in a regular conversation, then click the sparkle button at the bottom of the input box, to the left of the model selector. The plugin runs the **default left-click action**: by default this is the AI enhancement using your saved settings, but you can change it to any template (see Templates below). Click the same button again while processing to cancel.
 
 | Apply mode | What happens when processing finishes |
 | --- | --- |
 | Replace draft directly | The input box receives the improved draft without opening a preview or settings dialog |
 | Preview first | The original draft stays in place; a comparison opens, and the result is applied only when you click “Replace draft” (替换草稿) |
 
-The preview shows the original and improved drafts side by side by default, or stacked in a narrow window. Clear “Compare with original” (对照原文) to show only the result. Expand “Sources actually used” (实际参考来源) to see the sources and excerpts included. Notices about missing or truncated sources remain visible when needed.
+The preview shows the original and improved drafts side by side by default, or stacked in a narrow window. Added text in the improved draft is highlighted, replaced text in the original is struck through, and character counts are shown for both; click “Copy” to copy the improved draft, or “Enhance again” to regenerate once from the same snapshot. Clear “Compare with original” (对照原文) to show only the result. Expand “Sources actually used” (实际参考来源) to see the sources, excerpts and their character counts. Notices about missing or truncated sources remain visible when needed.
 
 Clicking “Keep original” (保留原稿) or closing the preview leaves the input unchanged. Neither apply mode sends a chat message automatically.
 
 ### Restore the original
 
-After applying a result, the enhancement button becomes a back arrow. Click it to restore the draft **as it was before that enhancement**; the button then returns to the sparkle icon.
+After applying a result (AI enhancement, template application or AI adaptation), the enhancement button becomes a back arrow. Click it to restore the draft **as it was before that action**; the button then returns to the sparkle icon. All three paths share the same undo slot.
 
 Editing, sending, or changing the attachments, session or effective model invalidates the previous undo action so it cannot overwrite new input. This is not a draft history feature across sessions.
 
+### Template menu (right-click)
+
+Right-click the sparkle button (when idle) to open the template menu:
+
+- **Enhance now** (立即增强): AI enhancement using your saved settings;
+- **Predict the next sentence** (预测下一句): triggers one input prediction manually (the automatic prediction comes from the Input prediction switch);
+- **Templates**: each row shows the template name and a body excerpt;
+  - **Clicking the template name** applies it locally — the draft fills the `{draft}` placeholder and the result replaces the draft verbatim, with no model call;
+  - **The sparkle icon in the row** (AI adaptation) sends the template (with the draft already filled in) to the model as a **complete instruction**; the model returns content adapted to the template (this replaces the "enhancement mode" directive; reference protection, language checks and safety rules still apply, and model usage is incurred);
+- **Manage templates in Settings → Prompt enhancement ⚙**: opens the settings page (Templates tab).
+
+The menu shows at most 20 templates. Non-owners see only the AI enhancement and prediction items (templates are configured by the host owner). While an AI adaptation is processing, clicking the sparkle button cancels it; local application is instantaneous and needs no cancel.
+
 ### When enhancement is unavailable
 
-Empty drafts, command drafts, subagent sessions and non-editable input boxes are not enhanced. The plugin has no right-click, `Shift+F10` or menu-key shortcut menu. Open its preferences through DSH Settings.
+Empty drafts, command drafts, subagent sessions and non-editable input boxes are not enhanced.
 
 ## Choose your settings
 
-Open **DSH Settings → Prompt enhancement** (提示词增强). The page groups enhancement preferences, input prediction, context scope and the enhancement model. Mystery injection and prediction use right-aligned native switches, operable by click, Space or Enter. Save applies changes; Cancel restores the saved values.
+Open **DSH Settings → Prompt enhancement** (提示词增强). The top of the page shows the title and “Refresh models and settings” (刷新模型与设置); the content is split into two tabs — **Enhancement preferences** (合并旧四分区: enhancement mode, apply mode, custom rules, input prediction, context scope and the enhancement model) and **Templates**. Clicking a tab shows only that panel; the “Save settings / Cancel” bar at the bottom applies to all fields. Non-owners see a read-only view of the effective default settings and cannot change them.
 
 ### Enhancement mode
 
@@ -40,9 +53,24 @@ Open **DSH Settings → Prompt enhancement** (提示词增强). The page groups 
 
 Both modes instruct the model to preserve the original language, negative constraints, numbers, paths, code and references, without introducing new restrictions or approval requirements. Missing facts are marked as needing clarification. Obvious drift between Chinese and Latin-script text is rejected, but this is not full language detection; review the result yourself.
 
-### Mystery prompt injection
+### Enhancement templates
 
-The **Mystery prompt injection** switch under **DSH Settings → Prompt enhancement → Enhancement preferences** is off by default and independent of the enhancement mode. A DeepSeek label identifies its applicability. When enabled, each enhancement tries to prepend a fixed capability declaration to the improved draft. Turning it on or off does not change the enhancement mode, apply mode, context scope, enhancement model or reasoning effort.
+The **Templates** tab (owner-only) manages:
+
+- **Default left-click action** dropdown: chooses what one click of the sparkle button does — `AI enhancement (follow preferences)` (default) or one of the existing templates as `apply locally` / `AI adaptation`. If the selected template is deleted, the action falls back to AI enhancement automatically.
+- **Template list** (up to 20): each row = name + body excerpt + character count + Edit / Delete. Deletion uses two-click confirmation (auto-reset after 3.5 seconds).
+- **New / inline editor card**: name (1–40 characters) and body (non-empty, up to 2000 characters, **exactly one `{draft}` placeholder** — the draft is inserted there); Ctrl+Enter saves; validation errors appear inline in red.
+- Changes take effect after clicking “Save settings” and sync into the right-click menu.
+
+**Two template actions**: clicking a template name in the menu applies it locally (no model call); the row's sparkle icon adapts the draft with the AI (template as complete instruction, model usage incurred). Both results share the undo slot.
+
+### Custom enhancement rules
+
+The optional “Custom enhancement rules” field under the **Enhancement preferences** tab accepts up to 500 characters and takes effect after clicking “Save settings”. Its content only constrains the wording of each rewrite (for example “keep it short” or “don't use emoji”); it is injected into the enhancement system prompt as an additional requirement, with a notice that it must not override the preservation, reference and safety rules. Input prediction does not apply it. The preview meta line shows “Custom rules applied”. The textarea cannot be resized manually and grows with its content.
+
+### Input prediction and mystery injection
+
+The **Input prediction** and **Mystery prompt injection** switches under the **Enhancement preferences** tab are off by default and independent of the enhancement mode. A DeepSeek label identifies mystery injection's applicability. When enabled, each enhancement tries to prepend a fixed capability declaration to the improved draft. Turning it on or off does not change the enhancement mode, apply mode, context scope, enhancement model or reasoning effort.
 
 Injection depends only on the model selected in the input box's model selector for the current conversation, and the plugin reads only that model's id. The id is tested against `/deepseek/i` (case-insensitive), for example `deepseek-chat`, `deepseek-reasoner`, `DeepSeek-V3.2-Exp`, `deepseek-v4.1-flash` or `deepseek-ai/DeepSeek-V3`. Other models are treated as non-DeepSeek, as are aliases and custom models whose id does not contain `deepseek`. Enhancement still completes normally, and the result reports why injection was skipped:
 
@@ -74,6 +102,8 @@ The declaration only adjusts model output behavior. It does not change the serve
 | Extended context | The question needs project information and memory | Conversation, personal and same-project memories, and current-project excerpts |
 
 Extended context is restricted to the host owner. The project is determined by the current session's workspace; an arbitrary directory cannot be selected. Sessions without a project show why project memories or files were not read.
+
+When you click the sparkle button in the input box, its tooltip shows the effective combination (enhancement mode · context scope · enhancement-model strategy), so you can confirm it without opening settings.
 
 ### Enhancement model
 
@@ -212,7 +242,7 @@ If the problem remains, [open an issue](https://github.com/Yocaihua8/dsh-prompt-
 
 Enable the right-hand **Input prediction** switch in **DSH Settings → Prompt Enhancement**, then save. It defaults to off, including when upgrading existing settings. Shortcut and usage hints stay visible; the settings page no longer contains a reference-scope disclosure. The scope rules below still apply.
 
-The visible, focused main-session composer predicts a next message after a completed response, or a suffix after an 800 ms typing pause. A blank new conversation makes no model call. Suggestions contain at most 200 characters. **Tab** accepts, **Esc** dismisses, and native undo reverses acceptance; sending remains manual. Shift+Tab keeps its navigation behavior.
+The visible, focused main-session composer predicts a next message after a completed response, or a suffix after an 800 ms typing pause. A blank new conversation makes no model call. Suggestions are faint text; a suggestion longer than 200 characters is truncated at a word boundary with a notice. **Tab** accepts the whole suggestion, **Alt+→** accepts only the first word (the remainder stays visible, and Tab can accept it afterwards), **Esc** dismisses, and native undo reverses acceptance; **Alt+\\** forces one immediate prediction when a suggestion was dismissed or suppressed. Sending remains manual. Shift+Tab keeps its navigation behavior.
 
 Prediction pauses during composition, selection, a nonterminal caret, native menus, running assistant turns, and pending interactions. Each session has one request at a time, a 3-second minimum interval and a 30-second deadline. Draft, attachment, model, context and setting changes invalidate old results. Failed or dismissed requests do not repeat for the same content and context.
 

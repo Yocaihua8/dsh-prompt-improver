@@ -19,15 +19,22 @@ export async function runChecks(h, report) {
   check(originalPaths[0] === 'M9.6 5.4 11.76 10.44 16.8 12.6 11.76 14.76 9.6 19.8 7.44 14.76 2.4 12.6 7.44 10.44Z', '保留原星光图标')
   const rect = trigger().getBoundingClientRect()
   check(rect.width === 28 && rect.height === 28 && trigger().querySelector('svg').getAttribute('width') === '18', '保留按钮和图标尺寸')
-  check(!trigger().hasAttribute('aria-haspopup') && !/右键|F10/.test(trigger().title), '去掉菜单语义与提示')
-  trigger().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
-  trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true }))
-  check(!document.querySelector('[role="menu"]'), '右键和 Shift+F10 不打开插件菜单')
+  check(trigger().getAttribute('aria-haspopup') === 'menu' && trigger().getAttribute('aria-expanded') === 'false', '0.4.0 星光按钮携带菜单语义')
+  // 右键打开模板菜单（空模板配置：仅 AI 增强 + 预测项），Escape 关闭
+  trigger().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+  await wait(() => document.querySelector('[role="menu"]'))
+  const menu = () => document.querySelector('[role="menu"]')
+  const menuItem = label => [...menu().querySelectorAll('[role="menuitem"]')].find(el => el.textContent.includes(label))
+  check(menuItem('立即增强') && menuItem('预测下一句'), '菜单含立即增强与预测项')
+  check(!menuItem('结构化任务'), '空模板配置不渲染模板组')
+  menu().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await wait(() => !document.querySelector('[role="menu"]'))
+  check(!document.querySelector('[role="menu"]') && document.activeElement === trigger(), 'Escape 关闭菜单并归还焦点')
   h.edit(''); await wait(() => trigger().getAttribute('aria-disabled') === 'true')
   const emptyCount = h.requests.length; trigger().click()
   check(h.requests.length === emptyCount && !dialog(), '空草稿不能增强或打开弹窗')
   h.edit(h.initial); await wait(() => trigger().getAttribute('aria-disabled') === 'false')
-  report('PASS: 原图标、单按钮、空草稿、无增强菜单')
+  report('PASS: 原图标、单按钮、空草稿、右键模板菜单开合')
 
   await adopt()
   check(!dialog() && !document.querySelector('[role="dialog"]'), '直接采用不弹窗')
@@ -83,6 +90,50 @@ export async function runChecks(h, report) {
   check(h.requests[stale].signal.aborted && h.inputState.getSnapshot().draft === '另一会话的草稿', '切换会话拒绝过期结果')
   report('PASS: 不可用模型、编辑后撤销失效、切换会话保护')
 
+  // —— 模板菜单回归组（0.4.0）：配置模板 → 双动作 → 处理中抑制 → 设置页模板 tab ——
+  h.configure({ templates: [{ id: 'tpl-review', name: '代码审查', text: '审查以下内容：{draft}' }] })
+  await wait(() => true)
+  trigger().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+  await wait(() => document.querySelector('[role="menu"]'))
+  const menuRow = () => document.querySelector('.dsh-prompt-enhance-menu-row-main')
+  check(menuRow() && menuRow().textContent.includes('代码审查'), '模板主区渲染名称')
+  check(document.querySelector('.dsh-prompt-enhance-menu-adapt'), '行内 AI 适配按钮渲染')
+  // 主区点击 = 本地套用（无模型调用）
+  const localCount = h.requests.length
+  menuRow().click()
+  await wait(() => h.inputState.getSnapshot().draft.includes('审查以下内容：'))
+  check(h.requests.length === localCount, '本地套用零模型调用')
+  check(trigger().getAttribute('aria-label') === '恢复原文', '套用进入撤销态')
+  trigger().click(); await wait(() => h.inputState.getSnapshot().draft === h.initial)
+  // 行内 AI 适配 = 走 enhance 请求（带 templateInstruction）
+  trigger().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+  await wait(() => document.querySelector('[role="menu"]'))
+  document.querySelector('.dsh-prompt-enhance-menu-adapt').click()
+  await wait(() => h.requests.length === localCount + 1 && trigger().getAttribute('aria-busy') === 'true')
+  const adaptRequest = h.requests.at(-1).request
+  check(typeof adaptRequest.templateInstruction === 'string' && adaptRequest.templateInstruction.includes('审查以下内容：') &&
+    adaptRequest.templateInstruction.includes(h.initial), 'AI 适配请求携带模板完整指令（含草稿）')
+  h.requests.at(-1).signal.addEventListener('abort', () => {})
+  h.requests.at(-1).resolve({ ok: true, value: { text: '【适配】按审查模板输出的问题清单', selection: { provider: 'fixture', model: 'fixture-model' }, context: { sources: [], warnings: [] } } })
+  await wait(() => h.inputState.getSnapshot().draft.startsWith('【适配】'))
+  check(trigger().getAttribute('aria-label') === '恢复原文', '适配结果进入撤销态')
+  trigger().click(); await wait(() => h.inputState.getSnapshot().draft === h.initial)
+  // 处理中右键不打开菜单
+  trigger().click(); await wait(() => trigger().getAttribute('aria-busy') === 'true')
+  trigger().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+  await wait(() => true)
+  check(!document.querySelector('[role="menu"]'), '处理中右键不打开菜单')
+  trigger().click(); await wait(() => trigger().getAttribute('aria-label') === '增强提示词')
+  // 默认动作 = 模板套用时左键直接套用
+  h.configure({ templates: [{ id: 'tpl-review', name: '代码审查', text: '审查以下内容：{draft}' }], defaultAction: { kind: 'template-apply', templateId: 'tpl-review' } })
+  await wait(() => true)
+  const aiCount = h.requests.length
+  trigger().click(); await wait(() => h.inputState.getSnapshot().draft.includes('审查以下内容：'))
+  check(h.requests.length === aiCount, '默认动作=模板套用时左键零调用')
+  trigger().click(); await wait(() => h.inputState.getSnapshot().draft === h.initial)
+  h.configure({}); await wait(() => true)
+  report('PASS: 模板双动作（本地套用/AI 适配）、处理中抑制、默认动作分派')
+
   h.openSettings(); await wait(() => button('保存设置') && !button('刷新模型与设置').disabled)
   check(button('保存设置').disabled && document.body.textContent.includes('设置已保存'), '未改设置不能保存')
   const adoption = document.querySelector('.dsh-prompt-enhance-settings select')
@@ -104,7 +155,9 @@ export async function runChecks(h, report) {
   check(mysteryToggle.getAttribute('aria-checked') === 'false' && !h.saved().mystery, '神秘提示词注入默认关闭')
   const settingsPage = document.querySelector('.dsh-prompt-enhance-settings')
   check(!settingsPage.querySelector('details') && !settingsPage.textContent.includes('参考范围与说明'), '预测参考说明已移除')
-  check(settingsPage.querySelectorAll('.dsh-prompt-enhance-feature kbd').length === 2 && settingsPage.querySelector('.dsh-prompt-enhance-usage-note').textContent.includes('产生用量'), '快捷键和用量提示保留')
+  check(settingsPage.querySelectorAll('.dsh-prompt-enhance-feature kbd').length === 4 && settingsPage.querySelector('.dsh-prompt-enhance-usage-note').textContent.includes('产生用量'), '快捷键和用量提示保留')
+  const shortcutText = settingsPage.querySelector('.dsh-prompt-enhance-keyboard-help').textContent
+  check(shortcutText.includes('逐词接受') && shortcutText.includes('立即预测'), '新增逐词接受与手动触发提示')
   check(Math.abs(predictionToggle.getBoundingClientRect().right - mysteryToggle.getBoundingClientRect().right) < 0.5, '两个开关右侧对齐')
   mysteryToggle.click(); await wait(() => !button('保存设置').disabled)
   check(!h.saved().mystery, '神秘开关未保存不生效')
@@ -125,5 +178,5 @@ export async function runChecks(h, report) {
   h.configure({}); h.edit(h.initial); h.setAuto(true)
   check(h.inputState.getSnapshot().attachmentIds[0] === 'fixture-attachment', '附件身份保留')
   report('PASS: 专用模型/档位不可用与附件保护')
-  report('完成：8 组 UI 回归通过；没有 Host 连接、模型调用或消息发送。')
+  report('完成：9 组 UI 回归通过（含 0.4.0 模板菜单组）；没有 Host 连接、模型调用或消息发送。')
 }
