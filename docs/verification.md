@@ -1,5 +1,81 @@
 # 验证记录
 
+## 2026-11-09：0.4.0 增强模板功能（未发布）
+
+按 [template-design.md](template-design.md) v2 落地 0.4.0：右键双动作模板菜单（点模板名 = 本地套用，行内 ✨ = AI 按模板适配）、菜单「预测下一句」与设置跳转齿轮、设置页两 tab 改造（增强偏好合并旧四分区｜增强模板）、模板管理（≤20 条、行内编辑、两击删除）、默认执行动作（enhance / template-apply / template-adapt，失效静默回落）、`EnhanceRequest` 可选 `templateInstruction`（模板即完整指令，替换增强方式段）。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| `npm run check` | 构建（Typert schema 自动重生成，含 templates/defaultAction/templateInstruction）+ Host/Client 类型检查 + **91/91 测试通过**（新增模板专项：归一过滤/去重/截断、defaultAction 失效回落、本地套用 `$` 序列安全、predict 快照含模板序列化一致性） |
+| `npm run check:package` | **44 个发布文件**通过（0.3.1 为 43 文件，新增测试断言与文档） |
+| 原型验证 | `output/prototype-templates-20261106/` 双动作菜单（行内 ✨ 事件隔离）、两 tab 设置页、两击删除、只读视图、gear 跳转、9 组自检在原生壳 0.2.2-rc.1 通过 |
+| browser 回归组 | `test/browser/single-button.js` 更新为 0.4.0 断言（9 组）：右键菜单开合/模板组渲染/主区本地套用零调用/行内 AI 适配携带 `templateInstruction`/处理中抑制/默认动作左键分派/Escape 焦点返回；0.4.0 构建在 0.2.2-rc.1 夹具页渲染通过（headless dump 核验 `aria-haspopup` 与菜单行 DOM）。**断言执行依赖既有 playwright 流程，本机当前不可用，待验收阶段执行** |
+| 隔离安装验收 | Desktop CLI `plugin --profile enhance-test add dsh-prompt-improver-0.4.0.tgz` 成功（pnpm 18.9s，exit 0）；隔离 `DSH_HOME` 启动成功（web 200 + token 鉴权）；安装后 `lib/client.js` 含双动作菜单/`templateInstruction`/`startDefault`/全部新文案，`lib/index.js` 含 `templateInstruction`，Typert schema 含 `templates`/`defaultAction`；`validateSettings` 迁移探针：0.3.1 旧设置归一合法（无新键），0.4.0 新键往返与指令填充（`审查：{draft}`→`审查：草稿内容`）通过。宿主 boot 有一条既有历史告警 `skipping profile bundle "dsh-link-prompt-enhance"`（0.2.6 改名前的宿主兼容声明遗留，非 0.4.0 引入，插件 bundle `dsh-prompt-improver` 正常加载） |
+| 边界 | 浏览器回归组的断言执行与日用 desktop profile 实机验收待执行后补记 |
+
+| 项 | 结果 |
+| --- | --- |
+| 版本 | 0.3.1 → **0.4.0**（新增兼容功能递增 Y，锁文件同步） |
+| 契约 | `EnhanceSettings` 新增可选 `templates`/`defaultAction`；`EnhanceRequest` 新增可选 `templateInstruction`；旧设置文件缺键即合法，回滚 0.3.1 忽略新键 |
+| 安装包 | `output/release-0400/dsh-prompt-improver-0.4.0.tgz` |
+
+## 2026-11-09：0.4.0 日用安装（待重启验收）
+
+将 0.4.0 安装到日用 `desktop` profile（本机 DSH 0.2.2-rc.1，宿主运行中——本会话即在其中；官方 CLI 支持宿主运行时安装，立即写盘、重启 DSH 后生效，与 0.3.0 先例一致）。安装前备份 profile 四件（package.json/pnpm-lock/cordis.yml/cordis.patch.yml → `output/daily-install-0400/backup/`），并记录日用 settings.json SHA-256。
+
+| 项 | 结果 |
+| --- | --- |
+| 安装 | 官方 `plugin --profile desktop add output/release-0400/dsh-prompt-improver-0.4.0.tgz`：`- dsh-prompt-improver 0.3.1` → `+ 0.4.0`，pnpm 12.2s，exit 0 |
+| 安装核验 | 安装目录 `lib/client.js` SHA-256 与构建产物一致；client 含双动作菜单类名与 `templateInstruction`，host index 含 `templateInstruction`，Typert schema 含 `templates`/`defaultAction`；版本 0.4.0 |
+| profile 变更 | `package.json` 仅插件依赖行变为 0.4.0 tarball 路径；`cordis.yml`/`cordis.patch.yml` 未被安装触碰 |
+| 设置与数据 | 日用 `settings.json` SHA-256 安装前后一致（`8A6C97…88040`，迁移在重启后首次读取时进行）；备份 sha 快照留存 |
+| 告警 | 既有第三方插件 `dsh-ops@0.4.4` 与 rc.1 的兼容声明告警（安装输出即有，非 0.4.0 引入；该插件保持 installed 但 profile 启动拒绝，直至显式豁免——与本次变更无关，如实记录） |
+| 边界 | 宿主运行中安装（与 0.3.0 先例相同），桌面交互验收（加载、双动作菜单、两 tab 设置、模板读写、真实模型 AI 适配）**待重启后执行**，完成后补记 |
+
+## 2026-11-06：0.3.1 宿主 0.2.2-rc.1 兼容声明
+
+日常桌面宿主升级到 **0.2.2-rc.1**（核心运行时 `@deepseek-ai/cordis` 4.1.0、`cosmokit` 1.9.0、`schemastery` 3.19.0、`cordis-plugin-loader/-include/-group` 1.1.0）。本轮只做宿主兼容声明与构建依赖切换，版本 0.3.0 → **0.3.1**。
+
+| 项 | 结果 |
+| --- | --- |
+| 声明 | `engines.dsh` 与全部 `@deepseek-ai/dsh-*` peerDependency 在原列表后追加 `0.2.2-rc.1`（rc.3/rc.4/rc.5 保留，并集声明，不写无上界范围）；`@deepseek-ai/cordis` peer 由 `~4.0.5` 扩为 `~4.0.5 || ~4.1.0`；`devDependencies` 全部 `@deepseek-ai/dsh-*` 钉到 `0.2.2-rc.1` |
+| 自有包检查 | `scripts/package-check.mjs` 中硬编码的 `engines.dsh` 期望值同步为新范围，仍是**全等断言**（未放宽为包含判断），`test/build-scripts.test.ts` 对真实清单的校验随之通过 |
+| 依赖 | 删除旧 `package-lock.json` 与旧 `node_modules` 后 `npm install`（旧锁树按 cordis `~4.0.5` 解析，与新宿主包 peer `~4.1.0` ERESOLVE）。新锁解析到 cordis 4.1.0、cosmokit 1.9.0、schemastery 3.19.0、loader/-include/-group 1.1.0，`@deepseek-ai/dsh-*` 全部 0.2.2-rc.1；锁顶层与 `packages[""]` 的 version、engines、dependencies、peerDependencies、devDependencies 与 `package.json` 一致 |
+| `npm run check` | 构建 + Host/Client `tsc --noEmit` + `tsx --test`：**90/90 通过，0 失败**（上轮探针在此处失败的唯一原因是自有检查常量仍是旧范围） |
+| `npm run check:package` | 通过：**43 个发布文件**（803133 unpacked bytes），导出、共享副本、相对导入与 allowlist 校验全部命中 |
+| 边界 | **本次仅宿主兼容调整**：版本声明、依赖钉版、版本递增、锁文件重建、自有检查常量与本文档；未改任何业务实现、Service/RPC 契约、客户端组件或存储格式 |
+
+环境注记（与本轮声明改动无关，如实记录）：本目录原先带有一条 Windows 完整性标签 `Mandatory Label\Low Mandatory Level:(OI)(CI)(NW)`，目录内新装的 `node_modules\@esbuild\win32-x64\esbuild.exe` 继承 Low 后以 No-Write-Up 启动，写不进仍是 Medium 的 `lib/`，`npm run build` 报 `Failed to write to output file: … Access is denied`。标签已由 Lead 按用户授权恢复为 Medium（`dsh-automation`、`dsh-connect-router`、`dsh-repowiki`、`dsh-link-prompt-enhance`、`dsh-personal-center`、`dsh-link-platform` 同一处理）。上表的 90/90 与 43 文件结果是**标签修复后、删除 `node_modules` 与 `package-lock.json` 重新 `npm install`、不使用任何替代二进制**原地复跑得到的；首轮曾用 SHA-256 与树内副本一致（`CAE1BB…4A7BE0`，同版本 0.25.12）的 esbuild 经 `ESBUILD_BINARY_PATH` 从目录外启动，那只是环境修复前的中间态，已被本次原地复跑取代。
+
+## 2026-11-04：0.3.0 日用安装（待重启验收）
+
+将含批次一、二改动的 0.3.0 安装到日用 `desktop` profile（本机 DSH rc.5）。按正式版规则从 0.2.12 升版为 0.3.0（兼容新增功能递增 Y）；`package.json` 与锁文件同步，`npm pack` 的 prepack 门禁（构建、类型、87/87 测试、43 文件包检查）通过后打包。**宿主运行中**执行官方 `plugin --profile desktop add` CLI（本会话即运行于宿主、无法自行退出；安装即时写盘，需重启 DSH 后生效）。pnpm 对同名同版本 `file:` 依赖会复用旧链接，重打 README 后曾出现安装文件与归档不一致，已按官方路径 remove + add 强制更新并复核。
+
+| 项 | 结果 |
+| --- | --- |
+| 安装包 | `output/daily-install-20261104/release/dsh-prompt-improver-0.3.0.tgz`，SHA-256 `7aaba677bfcb8a031ffff87e4f42040fd60ffbe2718e258bb6646922b7f4cec2`（SHA256SUMS 同目录） |
+| 安装核验 | `node_modules/dsh-prompt-improver` 与归档 `diff -rq` 逐字节一致；版本 0.3.0 |
+| profile 变更 | `package.json` 仅插件依赖一行改为新包路径；`pnpm-lock.yaml` 12 行；`cordis.yml`、`cordis.patch.yml` 不变 |
+| 设置与数据 | `settings.json` 哈希与安装前一致（路径 `$DSH_HOME/plugins/dsh-link-prompt-enhance/` 不变） |
+| 备份与回滚 | 安装前 profile 配置备份于 `output/daily-install-20261104/backup/before-install/`；回滚 = 正常退出后 remove + add 备份记录中的 0.2.12 包（`output/formal-release-20261030/`） |
+| dump-config | `--dump-config` 拒绝托管 profile（rc.5 官方限制），配置核验以文件级比对为准 |
+
+边界：安装时宿主未退出（与指南的退出建议不同，已如实记录）；安装后尚未重启，**0.3.0 的桌面交互验收（加载、设置页、预览、逐词接受、手动触发、恢复原文）待重启后进行**。README 版本段已标注 0.3.0 未发布。
+
+## 2026-11-03：优化设计批次落地（未发布）
+
+按已确认的[优化设计提案](optimization-design.md)实施批次一与批次二：预览词级差异高亮、预览内重新增强、复制与字符统计、来源字符数、按钮生效组合提示、非所有者只读生效视图、刷新按钮上移；设置契约新增可选 `customInstructions`（自定义增强要求，注入增强系统提示并声明不得覆盖保留与安全规则，输入预测不应用）；输入预测新增 Alt+→ 逐词接受与 Alt+\ 手动触发，超长建议改为按词界截断并提示。候选循环、历史读取失败降级、预测独立模型与全局快捷键按确认不做；英文文档已同步（设计文档待补充项 D2 完成，2026-11-04）。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| `npm run check` | 构建、Host/Client 类型检查与 **87/87 测试通过**（新增 diff 6 项、逐词切分属性、手动触发、重新生成、截断与自定义要求用例） |
+| `npm run check:package` | **43 个发布文件**通过 |
+| 8 组正式组件 UI 回归 | 通过；快捷键说明断言由 2 个 `kbd` 更新为 4 个（新增 Alt+→、Alt+\），预览与设置既有断言不变 |
+| 双语回归 | 通过；英文设置页无中文残留，深浅 × 1000/420/320px 无横向溢出 |
+| rc.3 原生编辑器预测回归 | **14 组通过**，新增 Alt+→ 逐词接受（剩余建议保持灰字、分步撤销）与 Alt+\ 解除去重强制一次 |
+
+边界：浏览器夹具使用 2026-10-28 提取的 rc.3 静态资源；当前本机宿主已是 rc.5，`extract-host.cjs` 版本闸门要求先重新核对资源映射，本轮未升级提取。未做完整桌面安装、真实模型质量与操作系统真实输入法验收。证据：`output/playwright/ui-checks-20261103.log`（8 组 + 双语 + 14 组预测）。
+
 ## 2026-10-28 完整中英文适配
 
 本轮增加字典键与插值一致性、英文格式、旧响应兼容、原始诊断、原生 locale 生命周期与英文页面/导出回归。正式构建在隔离浏览器中验证未保存设置、预览、请求、筛选和预测的语言切换，以及中英、深浅主题和窄窗口。安装前需重新核对日用会话及后台任务空闲并备份。最终命令结果、截图、包摘要和实机验收状态以工作区 `output/bilingual-ui-20261028/delivery.md` 为准；本段不将尚未完成的步骤记为通过。

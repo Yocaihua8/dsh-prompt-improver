@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 import type { Context } from '@deepseek-ai/cordis'
 import { SettingsStore } from '../src/host/settings.js'
-import { DEFAULT_SETTINGS, validateSettings } from '../src/shared/types.js'
+import { DEFAULT_SETTINGS, applyTemplate, validateSettings } from '../src/shared/types.js'
 import { collectContext, extendedContext } from '../src/host/context.js'
 import { allowedProjectFile, safeFile, searchProject } from '../src/host/project.js'
 import type { EnhanceRequest } from '../src/shared/types.js'
@@ -37,6 +37,50 @@ test('settings initialize once from legacy mode, persist restart and never retai
   assert.throws(() => validateSettings({ ...DEFAULT_SETTINGS, modelStrategy: 'dedicated' }), /无效/)
 })
 
+test('templates persist, silent-invalid entries are filtered, defaultAction falls back and the predict snapshot stays consistent', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'prompt-templates-'))
+  const store = new SettingsStore(join(root, 'settings.json'))
+  // 归一：缺省无模板，validateSettings 幂等
+  const base = validateSettings({ ...DEFAULT_SETTINGS })
+  assert.equal(base.templates, undefined)
+  assert.equal(base.defaultAction, undefined)
+  const template = { id: 't1', name: '代码审查', text: '审查以下内容：{draft}' }
+  const withTemplate = validateSettings({ ...DEFAULT_SETTINGS, templates: [template] })
+  assert.deepEqual(withTemplate.templates, [template])
+  assert.equal(withTemplate.templates![0].text, '审查以下内容：{draft}')
+  // 无效条目静默过滤：名称空、缺占位符、多占位符、超长、重复 id
+  const filtered = validateSettings({
+    ...DEFAULT_SETTINGS,
+    templates: [
+      template,
+      { id: 't2', name: '', text: 'x {draft}' },
+      { id: 't3', name: '无占位', text: '没有占位' },
+      { id: 't4', name: '双占位', text: '{draft}{draft}' },
+      { id: 't5', name: '超长', text: 'x'.repeat(2001) + '{draft}' },
+      { id: 't1', name: '重复', text: 'dup {draft}' },
+    ],
+  })
+  assert.deepEqual(filtered.templates, [template])
+  // defaultAction：指向存在的模板保留，缺失/空模板回落 enhance
+  assert.deepEqual(validateSettings({ ...DEFAULT_SETTINGS, templates: [template], defaultAction: { kind: 'template-apply', templateId: 't1' } }).defaultAction,
+    { kind: 'template-apply', templateId: 't1' })
+  assert.equal(validateSettings({ ...DEFAULT_SETTINGS, templates: [template], defaultAction: { kind: 'template-adapt', templateId: 'gone' } }).defaultAction, undefined)
+  assert.equal(validateSettings({ ...DEFAULT_SETTINGS, defaultAction: { kind: 'template-apply', templateId: 't1' } }).defaultAction, undefined)
+  assert.equal(validateSettings({ ...DEFAULT_SETTINGS, templates: [template], defaultAction: { kind: 'enhance' } }).defaultAction, undefined)
+  // 本地套用：占位符替换 + $ 序列陷阱安全
+  assert.equal(applyTemplate(template, '草稿$&$`'), '审查以下内容：草稿$&$`')
+  // settings.json 读写往返
+  const file = join(root, 'settings.json')
+  await store.save(withTemplate)
+  const roundTrip = validateSettings(await new SettingsStore(file).read())
+  assert.deepEqual(roundTrip.templates, [template])
+  assert.deepEqual(roundTrip.defaultAction, undefined)
+  // predict 一致性：设置快照（含模板）与保存值归一后序列化一致，不误报 settings-changed
+  const saved = validateSettings(withTemplate)
+  const snapshot = validateSettings({ ...saved })
+  assert.equal(JSON.stringify(saved), JSON.stringify(snapshot))
+}) 
+
 test('mystery injection defaults to off for existing files and round-trips', async () => {
   const root = await mkdtemp(join(tmpdir(), 'prompt-settings-mystery-'))
   const file = join(root, 'settings.json')
@@ -45,6 +89,18 @@ test('mystery injection defaults to off for existing files and round-trips', asy
   assert.equal((await store.read()).mystery, false)
   await store.save({ ...DEFAULT_SETTINGS, mystery: true })
   assert.equal((await new SettingsStore(file).read()).mystery, true)
+})
+
+test('custom instructions persist trimmed, stay absent when blank and enforce the length cap', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'prompt-settings-custom-'))
+  const file = join(root, 'settings.json')
+  const store = new SettingsStore(file)
+  await store.save({ ...DEFAULT_SETTINGS, customInstructions: '  保持简短  ' })
+  assert.equal((await new SettingsStore(file).read()).customInstructions, '保持简短')
+  await writeFile(file, JSON.stringify({ ...DEFAULT_SETTINGS, customInstructions: '旧值' }))
+  assert.equal((await store.read()).customInstructions, '旧值')
+  assert.throws(() => validateSettings({ ...DEFAULT_SETTINGS, customInstructions: '长'.repeat(501) }), /无效/)
+  assert.equal('customInstructions' in validateSettings({ ...DEFAULT_SETTINGS, customInstructions: '  ' }), false)
 })
 
 test('draft context performs no history, memory or project reads', async () => {

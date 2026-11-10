@@ -91,7 +91,7 @@ export function PredictionOverlay({ ctx, sessionId, settings, inputActions }: {
         document.visibilityState === 'visible' && document.activeElement === editor && editor.isContentEditable && editor.getBoundingClientRect().width > 0 &&
         !composing && Date.now() >= compositionUntil && !editor.hasAttribute('data-composer-composing') && !card.querySelector('[data-trigger-menu]') &&
         caretAtEnd(editor)
-      const dedupeKey = JSON.stringify([sessionId, state.draft, state.occurrences, state.attachmentIds, selection, models.current, settings.value, events.revision])
+      const dedupeKey = JSON.stringify([sessionId, state.draft, state.occurrences, state.attachmentIds, selection, settings.value, events.revision])
       const key = JSON.stringify([state.draftRev, dedupeKey])
       let request = null
       if (eligible && selection) {
@@ -121,7 +121,18 @@ export function PredictionOverlay({ ctx, sessionId, settings, inputActions }: {
     const onCompositionStart = () => { composing = true; reconcile() }
     const onCompositionEnd = () => { composing = false; compositionUntil = Date.now() + 20; reconcile(); setTimeout(reconcile, 25) }
     const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || composing || Date.now() < compositionUntil || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || composing || Date.now() < compositionUntil) return
+      if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey && event.key === 'ArrowRight') {
+        // Alt+→: accept the first word of the suggestion, Copilot-style partial accept.
+        if (controller.suggestion && read().eligible && controller.acceptWord()) { event.preventDefault(); event.stopImmediatePropagation() }
+        return
+      }
+      if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey && event.key === '\\') {
+        // Alt+\: force one prediction for the current snapshot.
+        if (read().eligible) { event.preventDefault(); event.stopImmediatePropagation(); controller.manualTrigger() }
+        return
+      }
+      if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
       if (event.key === 'Tab' && controller.suggestion && read().eligible && controller.accept()) { event.preventDefault(); event.stopImmediatePropagation() }
       else if (event.key === 'Escape' && (controller.suggestion || controller.pending)) { controller.dismiss(); event.preventDefault(); event.stopImmediatePropagation() }
     }

@@ -1,6 +1,6 @@
 # DSH Prompt Improver
 
-Current release **0.2.12** is compatible with DSH 0.2.1-rc.3, 0.2.1-rc.4, and 0.2.1-rc.5.
+Current release **0.4.0** is compatible with DSH 0.2.1-rc.3, 0.2.1-rc.4, 0.2.1-rc.5, and 0.2.2-rc.1.
 
 ## 0.2.11 bilingual interface
 
@@ -10,9 +10,17 @@ The complete plugin UI follows DSH **Settings → General → Language** immedia
 
 Turn a draft in the DSH input box into a clearer prompt. Apply the result directly, or compare it with the original before deciding what to keep.
 
-**Plugin 0.2.12 · Compatible with DSH 0.2.1-rc.3 / 0.2.1-rc.4 / 0.2.1-rc.5 · MIT license**
+**Plugin 0.4.0 · Compatible with DSH 0.2.1-rc.3 / 0.2.1-rc.4 / 0.2.1-rc.5 / 0.2.2-rc.1 · MIT license**
+
+## 0.4.0 (unreleased)
+
+Enhancement templates: save prompt skeletons (up to 20) in **Settings → Prompt enhancement → Templates** (two-tab layout), then reach them from the sparkle button's right-click menu — click a template name to **apply it locally** (the draft fills the `{draft}` placeholder, no model call), or click the row's sparkle icon to have the **AI adapt your draft to the template** (the template is the complete instruction; model usage applies). The **default left-click action** can be changed to any template action. The settings page now uses two tabs (Preferences merge the former four sections | Templates) with one shared save bar. See the [design proposal](docs/template-design.md).
 
 0.2.8 adds opt-in input prediction. Enable it in settings to suggest the next message in an empty composer or continue a draft after a pause. **Tab** inserts the faint suggestion; **Esc** dismisses it. Prediction uses the enhancement model and incurs model usage. Personal memory outside projects requires `dsh-memory 0.1.8-rc.2`.
+
+## 0.3.0 (unreleased)
+
+Changes implemented per the [optimization design proposal](docs/optimization-design.md), not yet released: side-by-side diff highlighting in the preview, re-enhancing within the preview, copy and character counts, and per-source character counts; the settings page gains “Custom enhancement rules” (optional, injected into the enhancement system prompt, not applied to prediction) and a read-only effective-settings view for non-owners; input prediction supports Alt+→ word-by-word acceptance, Alt+\ to predict immediately, and word-boundary truncation of over-long suggestions. English documentation has been updated to match these changes.
 
 Listed in **dsh-market**: [market page](https://awesome-dsh-plugin.com/p/Yocaihua8/dsh-prompt-improver/) · [accepted submission](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/9972).
 
@@ -32,7 +40,7 @@ Write a draft, then click the sparkle button at the bottom of the input box. The
 
 ### Compare before applying
 
-Choose **Preview first** (先预览，再决定) to compare the original and improved drafts side by side. Click **Replace draft** (替换草稿) to apply the result, or **Keep original** (保留原稿) to continue editing.
+Choose **Preview first** (先预览，再决定) to compare the original and improved drafts side by side: added text is highlighted, rewritten text is struck through, and character counts are shown. You can copy the improved draft or re-enhance from the same snapshot. Click **Replace draft** (替换草稿) to apply the result, or **Keep original** (保留原稿) to continue editing.
 
 ![Real preview showing the original draft and the actual model output, with actions to keep or replace the draft](docs/screenshots/enhance-preview.png)
 
@@ -105,9 +113,13 @@ The settings file intentionally stays at `$DSH_HOME/plugins/dsh-link-prompt-enha
 | Setting | Initial default | When to change it |
 | --- | --- | --- |
 | Enhancement mode | Moderate | Clarify the draft while preserving its intent; choose expanded mode for more structure and necessary detail |
+| Custom enhancement rules | Empty | Fill this in when every rewrite should additionally follow fixed wording requirements (up to 500 characters; preservation and safety rules still apply) |
+| Enhancement templates | None | Save prompt skeletons (with a `{draft}` placeholder) and reach them from the sparkle button's right-click menu: apply locally or have the AI adapt the draft; up to 20 entries |
+| Default left-click action | AI enhancement | Choose a template as the one-click action instead (apply locally / AI adaptation) |
 | Apply result | Replace draft directly | Choose preview mode to compare the result before applying it |
 | Context scope | Recent conversation | Use draft-only for standalone questions, or extended context for memory and project excerpts |
 | Enhancement model | Current conversation model | Choose a dedicated model to improve prompts with a different model |
+| Input prediction | Off | Suggests your next message or continues a draft from recent conversation and memory; Tab accepts the whole suggestion, Alt+→ accepts one word, Alt+\ predicts immediately, Esc dismisses |
 | Mystery prompt injection | Off | Injects a capability declaration at the start of the improved draft when the current conversation uses a DeepSeek model; other models are skipped automatically |
 
 Upgrades preserve existing settings. The enhancement mode from older clients is migrated on the first read. If a dedicated model is unavailable, enhancement fails with a message instead of silently switching models. See the [user guide](docs/guide.en.md) for details.

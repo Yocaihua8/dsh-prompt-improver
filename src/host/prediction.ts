@@ -4,6 +4,7 @@ import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { realpath } from 'node:fs/promises'
 import { DRAFT_CHAR_LIMIT, PREDICTION_CHAR_LIMIT, PREDICTION_TIMEOUT_MS, validSelection, validateSettings } from '../shared/types.js'
 import type { ContextReport, PredictionRequest, PredictionResponse } from '../shared/types.js'
+import { m } from '../shared/messages.js'
 import { validateTokens } from '../shared/references.js'
 import { validateContextRecall, type ContextMemoryService } from '../shared/generated/context-memory-contract.js'
 import { validateProjectRecallResult } from '../shared/generated/memory-contract.js'
@@ -75,6 +76,20 @@ export async function predictionMemory(ctx: Pick<Context, 'workspaceRegistry'>, 
   return report
 }
 
+/** Cut an over-long suggestion at the last word boundary that fits the limit; never extends past it. */
+export function truncateAtWordBoundary(text: string, limit: number): string {
+  const points = Array.from(text)
+  if (points.length <= limit) return text
+  let cut = 0, length = 0
+  for (const part of new Intl.Segmenter(undefined, { granularity: 'word' }).segment(text)) {
+    const next = length + part.segment.length
+    if (next > limit) break
+    if (part.isWordLike || cut > 0 && /^\s+$/u.test(part.segment)) cut = next
+    length = next
+  }
+  return points.slice(0, cut > 0 ? cut : limit).join('')
+}
+
 /** One tool-free auxiliary completion; no agent run, history append, or memory write. */
 export async function predictDraft(ctx: Pick<Context, 'llm' | 'sessionQuery' | 'workspaceRegistry'>,
   request: PredictionRequest, callerSignal: AbortSignal, memory?: ContextMemoryService,
@@ -124,8 +139,15 @@ export async function predictDraft(ctx: Pick<Context, 'llm' | 'sessionQuery' | '
       catch { throw new EnhanceError('invalid-result', '模型未返回有效续写，本次未显示建议。') }
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || Object.keys(parsed).length !== 1 || !('suffix' in parsed) || typeof parsed.suffix !== 'string') throw new EnhanceError('invalid-result', '模型未返回有效续写，本次未显示建议。')
       const text = parsed.suffix.trimEnd()
-      if (Array.from(text).length > PREDICTION_CHAR_LIMIT || /⟦DSH_REF_|[\u0000-\u0008\u000B\u000C\u000E-\u001F]/u.test(text)) throw new EnhanceError('invalid-result', '预测结果不适合插入，未采用建议。')
-      return { text: text.trim() ? text : '', context, selection }
+      let truncated = false
+      let bounded = text
+      if (Array.from(bounded).length > PREDICTION_CHAR_LIMIT) {
+        bounded = truncateAtWordBoundary(bounded, PREDICTION_CHAR_LIMIT)
+        truncated = bounded.length > 0
+      }
+      if (truncated) context.warnings.push(m('m174'))
+      if (/⟦DSH_REF_|[\u0000-\u0008\u000B\u000C\u000E-\u001F]/u.test(bounded)) throw new EnhanceError('invalid-result', '预测结果不适合插入，未采用建议。')
+      return { text: bounded.trim() ? bounded : '', context, selection }
     })(), signal)
   } catch (error) {
     if (callerSignal.aborted) throw new EnhanceError('cancelled', '输入预测已取消。')

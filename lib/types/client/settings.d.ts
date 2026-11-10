@@ -4,6 +4,8 @@ export declare class SettingsClient {
     private readonly ctx;
     readonly enhancing: Set<string>;
     setEnhancing(sessionId: string, busy: boolean): void;
+    /** 星光菜单齿轮跳转：打开设置页并定位到增强模板 tab。 */
+    requestOpenTemplates?: () => void;
     value: EnhanceSettings;
     capabilities: Capabilities;
     ready: boolean;

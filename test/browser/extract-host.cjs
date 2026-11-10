@@ -7,7 +7,10 @@ if (!resources || !destination) throw new Error('Usage: extract-host.cjs <DSH re
 const packages = path.join(resources, 'app.asar/dsh/node_modules/@deepseek-ai')
 const frontend = path.join(packages, 'dsh-web-frontend')
 const version = JSON.parse(fs.readFileSync(path.join(frontend, 'package.json'), 'utf8')).version
-if (version !== '0.2.1-rc.3') throw new Error(`Recheck UI fixture extraction for DSH ${version}`)
+// 0.2.2-rc.1 已核对（2026-11-06）：模块映射函数仍为 `function X(){return{react:…}}`、
+// `const X=globalThis.dshDesktopBoot,` 引导标记、主题包 `var X_css_default = "…"` 格式
+// 与 conversation composer 标记全部存在；前端资产仍为 index/vendor js+css。
+if (!['0.2.1-rc.3', '0.2.2-rc.1'].includes(version)) throw new Error(`Recheck UI fixture extraction for DSH ${version}`)
 const assets = path.join(frontend, 'dist/assets')
 fs.mkdirSync(destination, { recursive: true })
 const entries = fs.readdirSync(assets).filter(name => /^(index|vendor)-.*\.(js|css)$/.test(name))

@@ -188,3 +188,39 @@ test('dispose cancels and refuses writes; rejection keeps the original', async (
   assert.equal(second.read().draft.text, '解释闭包')
   assert.equal(second.controller.message, '模型不可用')
 })
+
+test('regenerate reuses the preview snapshot, replaces the result in place and adopts only on accept', async () => {
+  const h = harness(async () => true)
+  const first = h.controller.start('moderate', DEFAULT_SETTINGS, true); h.settle('first'); await first
+  assert.ok(h.controller.preview); assert.equal(h.writes.length, 0)
+  const again = h.controller.regenerate('expanded', DEFAULT_SETTINGS)
+  assert.equal(h.requests.length, 2)
+  assert.equal(h.requests[1]!.request.mode, 'expanded')
+  assert.equal(h.requests[1]!.request.draft, h.requests[0]!.request.draft)
+  h.settle('second'); await again
+  assert.equal(h.controller.preview!.draft.text, 'second')
+  assert.equal(h.writes.length, 0)
+  await h.controller.acceptPreview()
+  assert.equal(h.read().draft.text, 'second')
+  h.controller.restore(); assert.equal(h.read().draft.text, '解释闭包')
+})
+
+test('regenerate is ignored while a request runs, without a preview, or after the draft changed', async () => {
+  const h = harness(async () => true)
+  await h.controller.regenerate('moderate', DEFAULT_SETTINGS)
+  assert.equal(h.requests.length, 0)
+  const first = h.controller.start('moderate', DEFAULT_SETTINGS, true); h.settle('result'); await first
+  const direct = h.controller.start('moderate')
+  await h.controller.regenerate('moderate', DEFAULT_SETTINGS)
+  assert.equal(h.requests.length, 2)
+  h.settle('direct'); await direct
+  assert.equal(h.read().draft.text, 'direct')
+  const stale = harness(async () => true)
+  const open = stale.controller.start('moderate', DEFAULT_SETTINGS, true); stale.settle('open'); await open
+  const rerun = stale.controller.regenerate('moderate', DEFAULT_SETTINGS)
+  stale.change({ revision: 4, draft: { text: 'edited', references: [] } })
+  stale.controller.reconcile()
+  stale.settle('late'); await rerun
+  assert.equal(stale.writes.length, 0)
+  assert.equal(stale.controller.preview, undefined)
+})

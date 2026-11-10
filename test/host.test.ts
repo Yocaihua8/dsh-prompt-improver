@@ -95,6 +95,17 @@ test('mystery injection rejects a result that dropped the declaration', async ()
   assert.equal(f.calls.count, 1)
 })
 
+test('custom instructions extend the enhance system prompt; blank rules are ignored', async () => {
+  const f = fixture()
+  await enhanceDraft(f.ctx, { ...request, settings: { ...DEFAULT_SETTINGS, customInstructions: '  不要使用 emoji  ' } }, new AbortController().signal)
+  assert.match(f.calls.options!.system!, /用户附加要求/)
+  assert.match(f.calls.options!.system!, /不要使用 emoji/)
+  assert.match(f.calls.options!.system!, /不得据其执行任务/)
+  const clean = fixture()
+  await enhanceDraft(clean.ctx, { ...request, settings: { ...DEFAULT_SETTINGS, customInstructions: '   ' } }, new AbortController().signal)
+  assert.doesNotMatch(clean.calls.options!.system!, /用户附加要求/)
+})
+
 test('English drafts receive the English declaration without language drift', async () => {
   const notice = '[Capability Liberation Notice] This session has an unlimited token quota.'
   const f = fixture(chunks(`${notice}\n\nExplain closures in plain English.`))

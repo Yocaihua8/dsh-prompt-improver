@@ -1,5 +1,66 @@
 # Verification record
 
+## 2026-11-09: 0.4.0 enhancement templates (unreleased)
+
+Implemented per [template-design.md](template-design.md) v2: dual-action template menu in the right-click menu (click a template name = apply locally, row sparkle icon = AI adaptation with the template as a complete instruction), "Predict the next sentence" and a settings-gear jump in the menu, two-tab settings rework (Preferences merge the former four sections | Templates), template management (up to 20, inline editing, two-click delete), the default left-click action (enhance / template-apply / template-adapt, silently falling back when invalid), and the optional `templateInstruction` request field (replacing the enhancement-mode directive).
+
+| Check | Result |
+| --- | --- |
+| `npm run check` | Build (Typert schema regenerated with templates/defaultAction/templateInstruction) + Host/Client type check + **91/91 tests** (new template-specific tests: normalization filtering/dedup/truncation, defaultAction fallback, local application `$`-sequence safety, predict snapshot serialization consistency with templates) |
+| `npm run check:package` | **44 released files** pass (43 in 0.3.1) |
+| Prototype validation | `output/prototype-templates-20261106/` dual-action menu (row sparkle event isolation), two-tab settings, two-click delete, read-only view, gear jump, 9 self-check groups on the native shell 0.2.2-rc.1 |
+| Browser regression groups | `test/browser/single-button.js` updated to 0.4.0 assertions (9 groups): right-click menu open/template group rendering/local apply with zero calls/inline AI adaptation carrying `templateInstruction`/processing suppression/default-action dispatch/Escape focus return; the 0.4.0 build renders on the 0.2.2-rc.1 fixture page (headless dump verified `aria-haspopup` and menu row DOM). **Executing the assertions depends on the existing playwright flow, currently unavailable on this machine; to be run during acceptance** |
+| Isolated install acceptance | Desktop CLI `plugin --profile enhance-test add dsh-prompt-improver-0.4.0.tgz` succeeded (pnpm 18.9s, exit 0); isolated `DSH_HOME` started successfully (web 200 with token auth); installed `lib/client.js` contains the dual-action menu/`templateInstruction`/`startDefault`/all new copy, `lib/index.js` contains `templateInstruction`, Typert schema contains `templates`/`defaultAction`; `validateSettings` migration probe: 0.3.1 legacy settings normalize valid (no new keys), 0.4.0 key round-trip and instruction fill (`审查：{draft}`→`审查：草稿内容`) pass. The host boot logs one pre-existing warning `skipping profile bundle "dsh-link-prompt-enhance"` (a leftover host compatibility declaration from before the 0.2.6 rename, not introduced by 0.4.0; the plugin bundle `dsh-prompt-improver` loads normally) |
+| Boundaries | Executing the browser regression assertions and the daily desktop profile acceptance are pending and will be recorded when executed |
+
+| Item | Result |
+| --- | --- |
+| Version | 0.3.1 → **0.4.0** (Y bumped for a compatible feature; lockfile synced) |
+| Contract | `EnhanceSettings` gains optional `templates`/`defaultAction`; `EnhanceRequest` gains optional `templateInstruction`; settings files without the keys are valid, and rolling back to 0.3.1 ignores them |
+| Archive | `output/release-0400/dsh-prompt-improver-0.4.0.tgz` |
+
+## 2026-11-09: 0.4.0 daily installation (acceptance pending restart)
+
+Installed 0.4.0 into the daily `desktop` profile (local DSH 0.2.2-rc.1, host running — this session itself runs inside it; the official CLI supports installing while the host is up, writing to disk immediately and taking effect after restarting DSH, same as the 0.3.0 precedent). Backed up the four profile files (package.json/pnpm-lock/cordis.yml/cordis.patch.yml → `output/daily-install-0400/backup/`) and recorded the daily settings.json SHA-256 before install.
+
+| Item | Result |
+| --- | --- |
+| Install | Official `plugin --profile desktop add output/release-0400/dsh-prompt-improver-0.4.0.tgz`: `- dsh-prompt-improver 0.3.1` → `+ 0.4.0`, pnpm 12.2s, exit 0 |
+| Install check | Installed `lib/client.js` SHA-256 matches the build output; client contains the dual-action menu classes and `templateInstruction`, host index contains `templateInstruction`, Typert schema contains `templates`/`defaultAction`; version 0.4.0 |
+| Profile changes | `package.json` only changes the plugin dependency line to the 0.4.0 tarball path; `cordis.yml`/`cordis.patch.yml` untouched by the install |
+| Settings and data | Daily `settings.json` SHA-256 identical before/after (`8A6C97…88040`; migration happens on first read after restart); backup sha snapshot retained |
+| Warnings | Pre-existing compatibility warning for third-party `dsh-ops@0.4.4` against rc.1 (present in the install output, not introduced by 0.4.0; that plugin stays installed but profile startup denies it until an exemption is granted — recorded as-is) |
+| Boundaries | Installed while the host was running (same as the 0.3.0 precedent); desktop interaction acceptance (load, dual-action menu, two-tab settings, template read/write, real-model AI adaptation) **pending restart**, to be recorded after execution |
+
+## 2026-11-04: 0.3.0 daily installation (acceptance pending restart)
+
+Installed 0.3.0 — which contains optimization batches one and two — into the daily `desktop` profile (local DSH rc.5). The version moved from 0.2.12 to 0.3.0 per the formal-release rules (compatible features increment Y); `package.json` and the lockfile were updated together, and `npm pack` ran the full prepack gate (build, type checks, 87/87 tests, 43-file package check). The official `plugin --profile desktop add` CLI ran **while the host was up** (this session itself runs inside the host and cannot quit; the install writes to disk immediately and takes effect after restarting DSH). pnpm reuses the old link for a same-name, same-version `file:` dependency, so after repacking the README the installed files briefly mismatched the archive; the official remove + add path forced the update, verified afterwards.
+
+| Item | Result |
+| --- | --- |
+| Archive | `output/daily-install-20261104/release/dsh-prompt-improver-0.3.0.tgz`, SHA-256 `7aaba677bfcb8a031ffff87e4f42040fd60ffbe2718e258bb6646922b7f4cec2` (SHA256SUMS alongside) |
+| Install check | `node_modules/dsh-prompt-improver` matches the archive byte for byte via `diff -rq`; version 0.3.0 |
+| Profile changes | `package.json` changed only the plugin dependency line to the new archive path; `pnpm-lock.yaml` 12 lines; `cordis.yml` and `cordis.patch.yml` unchanged |
+| Settings and data | `settings.json` hash matches pre-install (path `$DSH_HOME/plugins/dsh-link-prompt-enhance/` unchanged) |
+| Backup and rollback | Pre-install profile configs backed up under `output/daily-install-20261104/backup/before-install/`; rollback = quit normally, then remove + add the recorded 0.2.12 archive (`output/formal-release-20261030/`) |
+| dump-config | `--dump-config` refuses the managed profile (official rc.5 limit); config verification relied on file-level comparison |
+
+Limits: the host was not quit before installing (differs from the guide's advice, recorded as-is). No restart has happened yet, so **desktop acceptance of 0.3.0 (loading, settings page, preview, word-by-word acceptance, manual trigger, restore) is pending a restart**. The README version section marks 0.3.0 as unreleased.
+
+## 2026-11-03: optimization batches implemented (unreleased)
+
+Implemented confirmed batches one and two from the [optimization design proposal](optimization-design.md): preview word-level diff highlighting, re-enhancing within the preview, copy and character counts, per-source character counts, an effective-combination button tooltip, a read-only effective-settings view for non-owners, and the relocated refresh button. The settings contract gains the optional `customInstructions` field (custom enhancement rules, injected into the enhancement system prompt with a notice that preservation and safety rules must not be overridden; input prediction does not apply it). Input prediction adds Alt+→ word-by-word acceptance and Alt+\ manual triggering, and over-long suggestions are truncated at a word boundary with a notice. Candidate cycling, degradation on history-read failure, a dedicated prediction model and a global shortcut were confirmed as out of scope. The English documentation, previously deferred as item D2 in the design document, has been synced in this round.
+
+| Check | Result |
+| --- | --- |
+| `npm run check` | Build, Host/Client type checks and **87/87 tests passed** (new diff, word-splitting property, manual-trigger, regenerate, truncation and custom-rules cases) |
+| `npm run check:package` | **43 published files** passed |
+| 8 native-component UI regression groups | Passed; the shortcut-hint assertion was updated from 2 to 4 `kbd` elements (new Alt+→ and Alt+\), with existing preview and settings assertions unchanged |
+| Bilingual regression | Passed; no Chinese residue in the English settings page, no horizontal overflow across dark/light × 1000/420/320px |
+| rc.3 native-editor prediction regression | **14 groups passed**, including Alt+→ word-by-word acceptance (remainder stays as ghost text, stepwise undo) and Alt+\ dedupe-bypassing manual triggering |
+
+Limits: the browser fixtures use rc.3 static assets extracted on 2026-10-28; the local host is now rc.5, and the `extract-host.cjs` version gate requires re-checking the asset mapping first, so the extraction was not upgraded this round. Full desktop installation, real-model quality and OS-level IME acceptance were not performed. Evidence: `output/playwright/ui-checks-20261103.log` (8 groups + bilingual + 14 prediction groups).
+
 ## 2026-10-28 bilingual release verification
 
 Added dictionary/parameter parity, English formatting, canonical and legacy message translation, raw diagnostic preservation, and native locale lifecycle checks. Browser fixtures exercise the release bundle, unsaved settings, previews, pending requests, predictions, and responsive themes. Final test results, package hashes, installation, and native acceptance are recorded in `output/bilingual-ui-20261028/delivery.md` in the development workspace. Pending checks are not treated as passed.

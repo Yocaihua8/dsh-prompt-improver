@@ -58,6 +58,6 @@ export async function checkPackage(entryUrl) {
         && (files.has(packed) || path.endsWith('.d.ts') && files.has(packed.replace(/(?<!\.d)\.[jt]s$/, '.d.ts'))), `Unpacked relative import: ${path} -> ${match[1]}`)
     }
   }
-  assert.equal(manifest.engines.dsh, '0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5')
+  assert.equal(manifest.engines.dsh, '0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1')
   console.log(`${manifest.name}: package verified (${files.size} files, ${pack.unpackedSize} unpacked bytes).`)
 }

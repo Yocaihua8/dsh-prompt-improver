@@ -14,13 +14,20 @@ export interface PredictionPort {
     changed(): void;
     now?(): number;
 }
-/** Presentation never writes a draft; only accept() can call insert. */
+/** Split a suggestion into the first segmented word (with trailing spaces) and the remainder. */
+export declare function splitSuggestionHead(suggestion: string): {
+    head: string;
+    rest: string;
+};
+/** Presentation never writes a draft; only accept()/acceptWord() can call insert. */
 export declare class PredictionController {
     private readonly port;
     suggestion: string;
     message: string;
     private key;
     private readonly attempted;
+    private readonly shown;
+    private backoff;
     private timer?;
     private active?;
     private lastStart;
@@ -31,7 +38,12 @@ export declare class PredictionController {
     reconcile(): void;
     private start;
     accept(): boolean;
+    /** Tab-equivalent for the remaining suggestion after acceptWord kept it visible. */
+    acceptWord(): boolean;
+    /** Alt+\: force one prediction for the current snapshot, bypassing the content dedupe and the backoff once. */
+    manualTrigger(): void;
     dismiss(): void;
+    private rememberShown;
     private remember;
     private stop;
     dispose(): void;

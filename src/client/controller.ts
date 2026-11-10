@@ -1,8 +1,8 @@
 import { m } from '../shared/messages.js'
 import { protectReferences, restoreReferences } from '../shared/references.js'
 import type { SemanticDraft } from '../shared/references.js'
-import { sameSelection } from '../shared/types.js'
-import type { EnhanceMode, EnhanceRequest, EnhanceResponse, EnhanceSettings, ModelSelection } from '../shared/types.js'
+import { applyTemplate, sameSelection } from '../shared/types.js'
+import type { DefaultAction, EnhanceMode, EnhanceRequest, EnhanceResponse, EnhanceSettings, EnhanceTemplate, ModelSelection } from '../shared/types.js'
 
 export interface ComposerSnapshot {
   sessionId: string
@@ -27,6 +27,11 @@ export interface ControllerPort {
 interface ActiveRequest { abort: AbortController; snapshot: ComposerSnapshot }
 interface Undo { original: SemanticDraft; applied: ComposerSnapshot }
 export interface Preview { snapshot: ComposerSnapshot; draft: SemanticDraft; response: EnhanceResponse }
+
+/** Template instructions reference the protected draft text; run after reference protection. */
+function applyInstruction(template: string, draft: string): string {
+  return template.replace('{draft}', () => draft)
+}
 
 function sameComposer(a: ComposerSnapshot, b: ComposerSnapshot): boolean {
   return a.sessionId === b.sessionId && a.revision === b.revision &&
@@ -78,13 +83,50 @@ export class EnhanceController {
     if (!this.disposed) this.port.changed()
   }
 
-  async start(mode: EnhanceMode, settings?: EnhanceSettings, previewOnce = false): Promise<void> {
+  async start(mode: EnhanceMode, settings?: EnhanceSettings, previewOnce = false, templateInstruction?: string): Promise<void> {
     if (this.disposed || this.active) return
     const snapshot = structuredClone(this.port.read())
     if (!snapshot.available || !snapshot.selection || !snapshot.draft.text.trim()) return
+    await this.run(snapshot, mode, settings, previewOnce, false, templateInstruction)
+  }
+
+  /** Left-click dispatch by the saved default action; falls back to the plain enhancement. */
+  async startDefault(settings: EnhanceSettings | undefined): Promise<void> {
+    const action: DefaultAction | undefined = settings?.defaultAction
+    if (!action || action.kind === 'enhance') return this.start('moderate', settings)
+    const template = settings?.templates?.find(candidate => candidate.id === action.templateId)
+    if (!template) return this.start('moderate', settings)
+    const snapshot = this.port.read()
+    if (!snapshot.available || !snapshot.draft.text.trim()) return
+    if (action.kind === 'template-apply') return this.applyTemplate(template)
+    return this.start('moderate', settings, false, applyTemplate(template, snapshot.draft.text))
+  }
+
+  /** Local template application: synchronous replacement with the shared undo slot. */
+  applyTemplate(template: EnhanceTemplate): void {
+    if (this.disposed || this.active) return
+    const snapshot = this.port.read()
+    if (!snapshot.available || !snapshot.draft.text.trim()) return
+    const applied = applyTemplate(template, snapshot.draft.text)
+    if (!applied.trim()) return
+    if (applied.length > 32_000) { this.message = m("m041", { p0: 32_000 }); this.port.changed(); return }
+    this.port.write({ text: applied, references: [] })
+    this.undo = { original: structuredClone(snapshot.draft), applied: structuredClone(this.port.read()) }
+    this.message = m("m178", { p0: template.name })
+    this.port.changed()
+  }
+
+  /** Re-run the enhancement for the snapshot already shown in the preview. */
+  async regenerate(mode: EnhanceMode, settings?: EnhanceSettings): Promise<void> {
+    if (this.disposed || this.active || !this.preview) return
+    await this.run(structuredClone(this.preview.snapshot), mode, settings, true, true)
+  }
+
+  private async run(snapshot: ComposerSnapshot, mode: EnhanceMode, settings: EnhanceSettings | undefined, previewOnce: boolean, keepPreview = false, templateInstruction?: string): Promise<void> {
+    if (this.disposed || this.active || !snapshot.selection) return
     const active: ActiveRequest = { abort: new AbortController(), snapshot }
     this.active = active
-    this.closePreview()
+    if (!keepPreview) this.closePreview()
     this.message = ''
     this.port.changed()
     try {
@@ -97,6 +139,7 @@ export class EnhanceController {
         selection: { ...snapshot.selection },
         currentSelection: snapshot.current ? { ...snapshot.current } : null,
         ...(settings ? { settings: structuredClone(settings) } : {}),
+        ...(templateInstruction ? { templateInstruction: applyInstruction(templateInstruction, protectedDraft.text) } : {}),
       }, active.abort.signal)
       if (this.disposed || this.active !== active || active.abort.signal.aborted) return
       if (!sameComposer(this.port.read(), snapshot)) {
@@ -109,6 +152,7 @@ export class EnhanceController {
       // request before writing: synchronous store subscribers may reconcile.
       this.active = undefined
       if (previewOnce || settings?.adoption === 'preview') {
+        if (keepPreview && !this.preview) return
         this.preview = { snapshot, draft: next, response: result }
         this.message = ''
       } else this.apply(next, snapshot, result)

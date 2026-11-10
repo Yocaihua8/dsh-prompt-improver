@@ -14,7 +14,7 @@ import { PREDICTION_INTERVAL_MS, validateSettings, type PredictionRequest, type 
 import { predictDraft, validatePrediction } from './host/prediction.js'
 import type { ContextMemoryService } from './shared/generated/context-memory-contract.js'
 
-export type { EnhanceRequest, EnhanceResponse, EnhanceMode, ModelSelection } from './shared/types.js'
+export type { EnhanceRequest, EnhanceResponse, EnhanceMode, ModelSelection, EnhanceTemplate, DefaultAction } from './shared/types.js'
 export type { PredictionRequest, PredictionResponse } from './shared/types.js'
 
 declare module '@deepseek-ai/cordis' {
@@ -63,7 +63,6 @@ export default class PromptEnhance extends TypertRemoteService {
       throw new RemoteError('prompt-enhance/failed', '增强失败，已保留原文。', { reason: 'failed', ...describeMessage('增强失败，已保留原文。') })
     }
   }
-
   @Remote({ resources: { session: (request) => SessionId(request.sessionId) } })
   async predict(request: PredictionRequest, signal: AbortSignal): Promise<PredictionResponse> {
     this.requireOwner(signal)

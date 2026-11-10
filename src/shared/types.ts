@@ -18,6 +18,8 @@ export interface EnhanceRequest {
   settings?: EnhanceSettings
   /** Composer model at click time; gates the mystery injection independently of `selection`. */
   currentSelection?: ModelSelection | null
+  /** Template as a complete instruction ({draft} already filled with the draft); replaces the mode directive. */
+  templateInstruction?: string
 }
 
 export interface EnhanceResponse {
@@ -37,7 +39,7 @@ export interface PredictionResponse extends EnhanceResponse {}
 export const PREDICTION_CHAR_LIMIT = 200
 export const PREDICTION_TIMEOUT_MS = 30_000
 export const PREDICTION_DEBOUNCE_MS = 800
-export const PREDICTION_INTERVAL_MS = 3_000
+export const PREDICTION_INTERVAL_MS = 8_000
 
 export interface EnhanceSettings {
   mode: EnhanceMode
@@ -49,6 +51,67 @@ export interface EnhanceSettings {
   mystery: boolean
   /** Missing in older clients/settings; normalized to false. */
   predictionEnabled?: boolean
+  /** Extra wording rules injected into the enhance system prompt; absent when empty. */
+  customInstructions?: string
+  /** Custom templates; missing or empty in older clients/settings. */
+  templates?: EnhanceTemplate[]
+  /** Left-click default action; missing in older clients/settings; normalized to enhance. */
+  defaultAction?: DefaultAction
+}
+export const CUSTOM_INSTRUCTION_LIMIT = 500
+export const DRAFT_PLACEHOLDER = '{draft}'
+export const TEMPLATE_NAME_LIMIT = 40
+export const TEMPLATE_TEXT_LIMIT = 2_000
+export const TEMPLATE_LIMIT = 20
+
+export interface EnhanceTemplate {
+  id: string
+  name: string
+  text: string
+}
+
+/** Left-click default action; enhance keeps the released behavior. */
+export type DefaultAction =
+  | { kind: 'enhance' }
+  | { kind: 'template-apply'; templateId: string }
+  | { kind: 'template-adapt'; templateId: string }
+
+/** Local application: the draft fills the placeholder; templates keep their remaining wording. */
+export function applyTemplate(template: EnhanceTemplate, draft: string): string {
+  return template.text.replace(DRAFT_PLACEHOLDER, () => draft)
+}
+
+function normalizeTemplates(value: unknown): EnhanceTemplate[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const seen = new Set<string>()
+  const templates: EnhanceTemplate[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const record = entry as Record<string, unknown>
+    const id = typeof record.id === 'string' ? record.id.trim() : ''
+    const name = typeof record.name === 'string' ? record.name.trim() : ''
+    const text = typeof record.text === 'string' ? record.text.trim() : ''
+    if (!id || seen.has(id) || !name || name.length > TEMPLATE_NAME_LIMIT ||
+        !text || text.length > TEMPLATE_TEXT_LIMIT) continue
+    if (text.split(DRAFT_PLACEHOLDER).length - 1 !== 1) continue
+    seen.add(id)
+    templates.push({ id, name, text })
+    if (templates.length >= TEMPLATE_LIMIT) break
+  }
+  return templates.length ? templates : undefined
+}
+
+function normalizeDefaultAction(value: unknown, templates: EnhanceTemplate[]): DefaultAction | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const kind = (value as Record<string, unknown>).kind
+  if (kind === 'enhance') return { kind: 'enhance' }
+  if (kind === 'template-apply' || kind === 'template-adapt') {
+    const templateId = (value as Record<string, unknown>).templateId
+    if (typeof templateId === 'string' && templates.some(template => template.id === templateId)) {
+      return { kind, templateId }
+    }
+  }
+  return undefined
 }
 export interface ContextSource {
   kind: 'conversation' | 'memory' | 'project'
@@ -68,10 +131,17 @@ export function validateSettings(value: EnhanceSettings): EnhanceSettings {
       !['draft', 'recent', 'extended'].includes(value.context) || !['follow', 'dedicated'].includes(value.modelStrategy) ||
       value.dedicated !== null && (!value.dedicated || !validSelection(value.dedicated)) ||
       value.modelStrategy === 'dedicated' && !value.dedicated) throw new Error('提示词增强设置无效，请重新选择。')
+  const custom = typeof value.customInstructions === 'string' ? value.customInstructions.trim() : ''
+  if (custom.length > CUSTOM_INSTRUCTION_LIMIT) throw new Error('提示词增强设置无效，请重新选择。')
+  const templates = normalizeTemplates(value.templates)
+  const defaultAction = normalizeDefaultAction(value.defaultAction, templates ?? [])
   return { mode: value.mode, adoption: value.adoption, context: value.context, modelStrategy: value.modelStrategy,
     dedicated: value.dedicated ? { provider: value.dedicated.provider, model: value.dedicated.model,
       ...(value.dedicated.reasoningEffort ? { reasoningEffort: value.dedicated.reasoningEffort } : {}) } : null,
-    mystery: value.mystery === true, predictionEnabled: value.predictionEnabled === true }
+    mystery: value.mystery === true, predictionEnabled: value.predictionEnabled === true,
+    ...(custom ? { customInstructions: custom } : {}),
+    ...(templates ? { templates } : {}),
+    ...(defaultAction && defaultAction.kind !== 'enhance' ? { defaultAction } : {}) }
 }
 export function validSelection(value: ModelSelection): boolean {
   return typeof value.provider === 'string' && !!value.provider.trim() && value.provider.length <= 200 &&

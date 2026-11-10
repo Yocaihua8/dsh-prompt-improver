@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import type { Capabilities, EnhanceRequest, EnhanceResponse, EnhanceSettings } from './shared/types.js';
 import { type PredictionRequest, type PredictionResponse } from './shared/types.js';
-export type { EnhanceRequest, EnhanceResponse, EnhanceMode, ModelSelection } from './shared/types.js';
+export type { EnhanceRequest, EnhanceResponse, EnhanceMode, ModelSelection, EnhanceTemplate, DefaultAction } from './shared/types.js';
 export type { PredictionRequest, PredictionResponse } from './shared/types.js';
 declare module '@deepseek-ai/cordis' {
     interface Context {
